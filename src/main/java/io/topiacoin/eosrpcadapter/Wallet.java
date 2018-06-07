@@ -1,5 +1,7 @@
 package io.topiacoin.eosrpcadapter;
 
+import io.topiacoin.eosrpcadapter.messages.Transaction;
+
 import java.net.URL;
 
 public class Wallet {
