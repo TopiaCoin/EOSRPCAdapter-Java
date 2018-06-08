@@ -3,7 +3,6 @@ package io.topiacoin.eosrpcadapter;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import io.topiacoin.eosrpcadapter.messages.AbiBinToJson;
 import io.topiacoin.eosrpcadapter.messages.AbiJsonToBin;
 import io.topiacoin.eosrpcadapter.messages.GetAccount;
@@ -14,7 +13,6 @@ import io.topiacoin.eosrpcadapter.messages.GetRequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.GetTableRows;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
-import org.apache.commons.codec.binary.StringUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -31,12 +29,12 @@ import java.util.TimeZone;
 
 public class Chain {
 
-    private final EOSRPCAdapter rpcAdapater;
+    private final EOSRPCAdapter rpcAdapter;
     private final URL chainURL;
 
     Chain(URL chainURL, EOSRPCAdapter rpcAdapter) {
         this.chainURL = chainURL;
-        this.rpcAdapater = rpcAdapter;
+        this.rpcAdapter = rpcAdapter;
     }
 
     public GetInfo.Response getInfo() {
@@ -45,7 +43,7 @@ public class Chain {
         try {
             URL getInfoURL = new URL(chainURL, "/v1/chain/get_info");
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.getRequest(getInfoURL);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
 
             System.out.println("response: " + response);
 
@@ -78,7 +76,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -112,7 +110,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -146,7 +144,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -183,7 +181,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -219,7 +217,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -255,7 +253,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -275,21 +273,18 @@ public class Chain {
         return abiBinToJsonResponse;
     }
 
-    public Transaction.Response pushTransaction(Transaction transaction) {
+    public Transaction.Response pushTransaction(SignedTransaction transaction) {
         Transaction.Response transactionResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/push_transaction");
 
-            SignedTransaction signedTransaction = new SignedTransaction();
-            signedTransaction.transaction = transaction;
-
             ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(signedTransaction);
+            String requestString = om.writeValueAsString(transaction);
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -331,7 +326,7 @@ public class Chain {
 
             System.out.println("requestString: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapater.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
             System.out.println("response: " + response);
 
@@ -374,7 +369,8 @@ public class Chain {
         transaction.actions = new ArrayList<Transaction.Action>();
         transaction.actions.add(txAction);
         transaction.scope = scopes;
-        transaction.authorizations = null;
+        transaction.authorizations = new ArrayList<Transaction.Authorization>();
+        transaction.signatures = new ArrayList<String>();
         transaction.expiration = expDateString;
 
         return transaction;
