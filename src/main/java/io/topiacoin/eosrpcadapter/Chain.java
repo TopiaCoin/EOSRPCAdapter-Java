@@ -13,12 +13,17 @@ import io.topiacoin.eosrpcadapter.messages.GetRequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.GetTableRows;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
+import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,6 +87,9 @@ public class Chain {
 
             if (response.response != null) {
                 getBlockResponse = om.readValue(response.response, GetBlock.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -116,6 +124,9 @@ public class Chain {
 
             if (response.response != null) {
                 getAccountRespons = om.readValue(response.response, GetAccount.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -150,6 +161,9 @@ public class Chain {
 
             if (response.response != null) {
                 getCodeResponse = om.readValue(response.response, GetCode.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -187,6 +201,9 @@ public class Chain {
 
             if (response.response != null) {
                 getTableRowsResponse = om.readValue(response.response, GetTableRows.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -223,6 +240,9 @@ public class Chain {
 
             if (response.response != null) {
                 abiJsonToBinResponse = om.readValue(response.response, AbiJsonToBin.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -259,6 +279,9 @@ public class Chain {
 
             if (response.response != null) {
                 abiBinToJsonResponse = om.readValue(response.response, AbiBinToJson.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -291,8 +314,8 @@ public class Chain {
             if (response.response != null) {
                 transactionResponse = om.readValue(response.response, Transaction.Response.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                System.out.println ( "Error Message: " + errorMessage);
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -318,8 +341,8 @@ public class Chain {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_required_keys");
 
             GetRequiredKeys.Request request = new GetRequiredKeys.Request();
-            request.transaction = transaction ;
-            request.available_keys = Arrays.asList(availableKeys) ;
+            request.transaction = transaction;
+            request.available_keys = Arrays.asList(availableKeys);
 
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
@@ -332,6 +355,9 @@ public class Chain {
 
             if (response.response != null) {
                 getTableRowsResponse = om.readValue(response.response, GetRequiredKeys.Response.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -351,7 +377,12 @@ public class Chain {
         TimeZone tz = TimeZone.getTimeZone("UTC");
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         df.setTimeZone(tz);
-        String expDateString = df.format(expirationDate) ;
+        String expDateString = df.format(expirationDate);
+
+        GetInfo.Response info = getInfo();
+        String last_irreversible_block_num = Long.toString(info.last_irreversible_block_num);
+        GetBlock.Response blockInfo = getBlock(last_irreversible_block_num);
+        String last_irreversible_block_prefix = Long.toString(blockInfo.ref_block_prefix);
 
         AbiJsonToBin.Response binArgsResponse = abiJsonToBin(code, action, args);
         String binArgs = binArgsResponse.binargs;
@@ -364,16 +395,68 @@ public class Chain {
         txAction.recipients = new String[]{code};
 
         Transaction transaction = new Transaction();
-        transaction.ref_block_num = "126000";
-        transaction.ref_block_prefix = "3714577127";
+        transaction.ref_block_num = last_irreversible_block_num;
+        transaction.ref_block_prefix = last_irreversible_block_prefix;
         transaction.actions = new ArrayList<Transaction.Action>();
         transaction.actions.add(txAction);
-        transaction.scope = scopes;
-        transaction.authorizations = new ArrayList<Transaction.Authorization>();
         transaction.signatures = new ArrayList<String>();
         transaction.expiration = expDateString;
 
         return transaction;
+    }
+
+    // -------- Private Methods --------
+
+
+    /*
+        TransactionHeader::serialize(writer);
+
+        SerializeCollection(context_free_action, writer);
+        SerializeCollection(actions, writer);
+        SerializeCollection(transaction_extensions, writer);
+    */
+    /*
+        void TransactionHeader::serialize(EOSByteWriter *writer) const
+        {
+           if (writer) {
+               QDateTime date = QDateTime::fromString(QString::fromStdString(expiration), Qt::ISODate);
+               writer->putIntLE((int)(date.toMSecsSinceEpoch() / 1000 + date.offsetFromUtc() + EXPIRATION_SEC));
+               writer->putShortLE((short)ref_block_num & 0xFFFF);
+               writer->putIntLE((int)(ref_block_prefix & 0xFFFFFFFF));
+               writer->putVariableUInt(net_usage_words);
+               writer->putVariableUInt(kcpu_usage);
+               writer->putVariableUInt(delay_seconds);
+           }
+        }
+    */
+    /*
+        template<typename T>
+        void SerializeCollection(const std::vector<T>& list, EOSByteWriter *writer)
+        {
+            if (writer) {
+                writer->putVariableUInt(list.size());
+                for (auto item : list) {
+                    item.serialize(writer);
+                }
+            }
+        }
+
+     */
+    public String packTransaction(SignedTransaction transaction) {
+        String packedTrx = null ;
+        try {
+            EOSByteWriter writer = new EOSByteWriter(4096);
+
+            transaction.pack(writer);
+
+            // Convert to Hex String
+            byte[] bytes = writer.toBytes();
+            packedTrx = Hex.encodeHexString(bytes);
+
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return packedTrx ;
     }
 
 

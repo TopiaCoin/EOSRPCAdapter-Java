@@ -377,26 +377,75 @@ public class EOSRPCAdapterTest {
         UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
 
         Map args = new HashMap();
-        args.put("inviter", "inita");
-        args.put("guid", "0x123456789");
-        args.put("invitee", "eosio");
+        args.put("from", "inita");
+        args.put("type", "foo");
+        args.put("data", "bar");
 
-        Date expDate = new Date(System.currentTimeMillis() + 60000);
+        Date expDate = new Date(System.currentTimeMillis() + 600000);
 
+        /*
+[
+  {
+    "ref_block_num": "66248",
+    "ref_block_prefix": "1445112014",
+    "expiration": "2018-06-11T22:38:22",
+    "scope": [
+      "inita"
+    ],
+    "actions": [
+      {
+        "code": "inita",
+        "type": "anyaction",
+        "recipients": [
+          "inita"
+        ],
+        "authorizations": [
+          {
+            "account": "inita",
+            "permission": "active"
+          }
+        ],
+        "data": "000000000093dd74047465737403626172"
+      }
+    ],
+    "signatures": [],
+    "authorizations": []
+  },
+  [
+    "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
+    "EOS6js37ofHj5Tf3DsGiSuwjA1BrkyuhMaoChhwtGhKdRRGUuXBvu",
+    "EOS7NjEaNA9GGyK8W7nuH4NHiq9i4C8AuHYcsRijqfQrypfjMC36M"
+  ],
+  ""
+]
+         */
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
         Transaction.Authorization authorization = new Transaction.Authorization();
         authorization.account="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
-        transaction = chain.createRawTransaction("inita", "invite", args, scope, authorizations, expDate);
-
+        transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;
 
         SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys.toArray(new String[0])) ;
 
         assertNotNull ( signedTransaction ) ;
+
+        signedTransaction.actions = new ArrayList<SignedTransaction.SignedAction>();
+        for (Transaction.Action action : transaction.actions) {
+            SignedTransaction.SignedAction signedAction = new SignedTransaction.SignedAction();
+            signedAction.name = action.type;
+            signedAction.account = action.code;
+            signedAction.data = action.data;
+            signedAction.authorization = action.authorizations;
+            signedTransaction.actions.add(signedAction) ;
+        }
+
+        String packed_trx = chain.packTransaction(signedTransaction) ;
+
+        System.out.println("packed_trx: " + packed_trx);
 
         chain.pushTransaction(signedTransaction) ;
     }

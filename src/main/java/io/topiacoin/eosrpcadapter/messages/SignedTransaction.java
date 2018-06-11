@@ -1,5 +1,14 @@
 package io.topiacoin.eosrpcadapter.messages;
 
+import io.topiacoin.eosrpcadapter.util.Base32;
+import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
+import org.bouncycastle.util.encoders.Hex;
+
+import java.math.BigInteger;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 public class SignedTransaction {
@@ -33,19 +42,64 @@ public class SignedTransaction {
     public long region;
     public long ref_block_num;
     public long ref_block_prefix;
-    public long max_net_usage_words;
-    public long max_kcpu_usage;
-    public long delay_sec;
+    public int max_net_usage_words;
+    public int max_cpu_usage_ms;
+    public int delay_sec;
     public List<String> context_free_actions;
     public List<SignedAction> actions;
     public List<String> signatures;
+    public List<String> transaction_extensions;
     public List<String> context_free_data;
 
+    public void pack(EOSByteWriter writer) throws ParseException {
+        // Pack the Transaction Header
+        DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        Date expirationDate = sdf.parse(expiration);
+        int expSecs = (int) (expirationDate.getTime() / 1000 + 30);
+        writer.putInt(expSecs);
+        writer.putShort((short) (ref_block_num & 0xFFFF));
+        writer.putInt((int) (ref_block_prefix & 0xFFFFFFFF));
+        writer.putVariableUInt(max_net_usage_words);
+        writer.putVariableUInt(max_cpu_usage_ms);
+        writer.putVariableUInt(delay_sec);
+
+        // Pack the Context Free Actions
+        writer.putVariableUInt(0);
+
+        // Pack the Actions
+        writer.putVariableUInt(actions.size());
+        for (SignedAction action : actions) {
+            action.pack(writer);
+        }
+
+        // Pack the Transaction Extensions
+        writer.putVariableUInt(0);
+
+    }
 
     public static class SignedAction {
         public String account;
         public String name;
         public List<Transaction.Authorization> authorization;
         public String data;
+
+        public void pack(EOSByteWriter writer) {
+            // Base32 decode the account and name to long's.
+            long accountLong = Base32.decode(account);
+            long nameLong = Base32.decode(name);
+
+            writer.putLong(accountLong);
+            writer.putLong(nameLong);
+
+            // Serialize the Authorizations
+            writer.putVariableUInt(authorization.size());
+            for (Transaction.Authorization auth : authorization) {
+                auth.pack(writer);
+            }
+
+            byte[] decodedData = Hex.decode(data);
+            writer.putVariableUInt(decodedData.length);
+            writer.putBytes(decodedData);
+        }
     }
 }

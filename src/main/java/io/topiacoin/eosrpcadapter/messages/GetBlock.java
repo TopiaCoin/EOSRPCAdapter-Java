@@ -11,15 +11,18 @@ public class GetBlock {
     }
 
     public static class Response {
-        public String previous;
         public String timestamp;
+        public String producer;
+        public long confirmed;
+        public String previous;
         public String transaction_mroot;
         public String action_mroot;
-        public String block_mroot;
-        public String producer;
         public long schedule_version;
         public List<String> new_producers;
+        public List<String> header_extensions;
         public String producer_signature;
+        public List<Transaction> transactions;
+        public List<String> block_extensions;
 
         @JsonIgnore
         public String regions;
@@ -33,15 +36,18 @@ public class GetBlock {
         @Override
         public String toString() {
             return "Response{" +
-                    "previous='" + previous + '\'' +
-                    ", timestamp='" + timestamp + '\'' +
+                    "timestamp='" + timestamp + '\'' +
+                    ", producer='" + producer + '\'' +
+                    ", confirmed=" + confirmed +
+                    ", previous='" + previous + '\'' +
                     ", transaction_mroot='" + transaction_mroot + '\'' +
                     ", action_mroot='" + action_mroot + '\'' +
-                    ", block_mroot='" + block_mroot + '\'' +
-                    ", producer='" + producer + '\'' +
                     ", schedule_version=" + schedule_version +
-                    ", new_producers=" + new_producers.toString() +
+                    ", new_producers=" + new_producers +
+                    ", header_extensions=" + header_extensions +
                     ", producer_signature='" + producer_signature + '\'' +
+                    ", transactions=" + transactions +
+                    ", block_extenstions=" + block_extensions +
                     ", regions='" + regions + '\'' +
                     ", input_transactions='" + input_transactions + '\'' +
                     ", id='" + id + '\'' +

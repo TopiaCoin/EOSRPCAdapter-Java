@@ -315,7 +315,7 @@ public class Wallet {
 
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("Import Request: " + request);
+            System.out.println("Sign Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, requestString);
 
