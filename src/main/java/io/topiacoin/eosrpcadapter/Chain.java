@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -305,7 +306,7 @@ public class Chain {
             transaction.pack(writer);
             String packedTrx = Hex.encodeHexString(writer.toBytes());
 
-            Map<String, Object> pushTrx = new HashMap<String,Object>();
+            Map<String, Object> pushTrx = new LinkedHashMap<String,Object>();
             pushTrx.put("signatures", transaction.signatures);
             pushTrx.put("compression", "none");
             pushTrx.put("packed_context_free_data", "");
@@ -345,7 +346,7 @@ public class Chain {
 
     }
 
-    public GetRequiredKeys.Response getRequiredKeys(Transaction transaction, String[] availableKeys) {
+    public GetRequiredKeys.Response getRequiredKeys(Transaction transaction, List<String> availableKeys) {
         GetRequiredKeys.Response getTableRowsResponse = null;
 
         try {
@@ -353,7 +354,7 @@ public class Chain {
 
             GetRequiredKeys.Request request = new GetRequiredKeys.Request();
             request.transaction = transaction;
-            request.available_keys = Arrays.asList(availableKeys);
+            request.available_keys = new ArrayList<String>(availableKeys);
 
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);

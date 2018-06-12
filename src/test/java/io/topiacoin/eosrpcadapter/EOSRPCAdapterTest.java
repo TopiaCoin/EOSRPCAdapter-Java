@@ -202,7 +202,7 @@ public class EOSRPCAdapterTest {
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;;
 
-        GetRequiredKeys.Response response = chain.getRequiredKeys(transaction, publicKeys.toArray(new String[0]));
+        GetRequiredKeys.Response response = chain.getRequiredKeys(transaction, publicKeys);
 
         assertNotNull(response);
     }
@@ -350,7 +350,7 @@ public class EOSRPCAdapterTest {
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;
 
-        SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys.toArray(new String[0])) ;
+        SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys) ;
 
         assertNotNull ( signedTransaction ) ;
     }
@@ -381,7 +381,7 @@ public class EOSRPCAdapterTest {
         args.put("type", "foo");
         args.put("data", "bar");
 
-        Date expDate = new Date(System.currentTimeMillis() + 30000);
+        Date expDate = new Date(System.currentTimeMillis() + 60000);
 
         GetInfo.Response chainInfo = chain.getInfo();
 
@@ -395,16 +395,18 @@ public class EOSRPCAdapterTest {
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;
 
-        GetRequiredKeys.Response reqKeyResponse = chain.getRequiredKeys(transaction, publicKeys.toArray(new String[0]));
+        GetRequiredKeys.Response reqKeyResponse = chain.getRequiredKeys(transaction, publicKeys);
 
-        SignedTransaction signedTransaction = wallet.signTransaction(transaction, reqKeyResponse.required_keys.toArray(new String[0]), chainInfo.chain_id) ;
+        SignedTransaction signedTransaction = wallet.signTransaction(transaction, reqKeyResponse.required_keys, chainInfo.chain_id) ;
 
         assertNotNull ( signedTransaction ) ;
 
-        String packed_trx = chain.packTransaction(signedTransaction) ;
+//        String packed_trx = chain.packTransaction(signedTransaction) ;
+//
+//        System.out.println("packed_trx: " + packed_trx);
 
-        System.out.println("packed_trx: " + packed_trx);
+        Transaction.Response pushResponse = chain.pushTransaction(signedTransaction);
 
-        chain.pushTransaction(signedTransaction) ;
+        System.out.println ( "Push Response: " + pushResponse ) ;
     }
 }

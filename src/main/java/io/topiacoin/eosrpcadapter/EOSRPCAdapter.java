@@ -9,6 +9,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClients;
 
@@ -116,7 +117,7 @@ public class EOSRPCAdapter {
 
             URI getURI = url.toURI();
             HttpPost postRequest = new HttpPost(getURI);
-            postRequest.setEntity(new StringEntity(requestData));
+            postRequest.setEntity(new StringEntity(requestData, ContentType.APPLICATION_JSON));
 
             HttpResponse response = client.execute(postRequest);
 

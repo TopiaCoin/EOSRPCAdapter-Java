@@ -298,11 +298,11 @@ public class Wallet {
         return setTimeoutResponse;
     }
 
-    public SignedTransaction signTransaction (Transaction transaction, String[] keys) {
+    public SignedTransaction signTransaction (Transaction transaction, List<String> keys) {
         return signTransaction(transaction, keys, "");
     }
 
-    public SignedTransaction signTransaction (Transaction transaction, String[] keys, String chainID) {
+    public SignedTransaction signTransaction (Transaction transaction, List<String> keys, String chainID) {
         SignedTransaction signedTransaction = null ;
 
         try {

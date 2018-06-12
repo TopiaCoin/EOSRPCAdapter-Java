@@ -10,6 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 public class Transaction {
@@ -62,7 +63,7 @@ public class Transaction {
         DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         sdf.setTimeZone(tz);
         Date expirationDate = sdf.parse(expiration);
-        int expSecs = (int) (expirationDate.getTime() / 1000 + 30);
+        int expSecs = (int) (expirationDate.getTime() / 1000);
         writer.putInt(expSecs);
         writer.putShort((short) (ref_block_num & 0xFFFF));
         writer.putInt((int) (ref_block_prefix & 0xFFFFFFFF));
@@ -163,6 +164,15 @@ public class Transaction {
 
     public static class Response {
         public String transaction_id;
+        public Map<String, Object> processed;
+
+        @Override
+        public String toString() {
+            return "Response{" +
+                    "transaction_id='" + transaction_id + '\'' +
+                    ", processed=" + processed +
+                    '}';
+        }
     }
 
 }
