@@ -2,6 +2,7 @@ package io.topiacoin.eosrpcadapter.messages;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class GetAccount {
 
@@ -12,24 +13,38 @@ public class GetAccount {
 
     public static class Response {
         public String account_name;
+        public boolean privileged;
+        public String last_code_update;
+        public String created;
+        public long ram_quota;
+        public long net_weight;
+        public long cpu_weight;
+        public Map<String, Long> net_limit;
+        public Map<String, Long> cpu_limit;
+        public long ram_usage;
         public AccountPermission[] permissions;
 
-        public String name;
-        public String eos_balance;
-        public String staked_balance;
-        public String unstaked_balance;
-        public String last_unstaking_time;
+        public String total_resources;
+        public String self_delegated_bandwidth;
+        public String voter_info;
 
         @Override
         public String toString() {
             return "Response{" +
                     "account_name='" + account_name + '\'' +
+                    ", privileged=" + privileged +
+                    ", last_code_update='" + last_code_update + '\'' +
+                    ", created='" + created + '\'' +
+                    ", ram_quota=" + ram_quota +
+                    ", net_weight=" + net_weight +
+                    ", cpu_weight=" + cpu_weight +
+                    ", net_limit=" + net_limit +
+                    ", cpu_limit=" + cpu_limit +
+                    ", ram_usage=" + ram_usage +
                     ", permissions=" + Arrays.toString(permissions) +
-                    ", name='" + name + '\'' +
-                    ", eos_balance='" + eos_balance + '\'' +
-                    ", staked_balance='" + staked_balance + '\'' +
-                    ", unstaked_balance='" + unstaked_balance + '\'' +
-                    ", last_unstaking_time='" + last_unstaking_time + '\'' +
+                    ", total_resources='" + total_resources + '\'' +
+                    ", self_delegated_bandwidth='" + self_delegated_bandwidth + '\'' +
+                    ", voter_info='" + voter_info + '\'' +
                     '}';
         }
     }
@@ -53,6 +68,7 @@ public class GetAccount {
         public int threshold;
         public KeyWeights[] keys;
         public String[] accounts;
+        public String[] waits;
 
         @Override
         public String toString() {
@@ -60,6 +76,7 @@ public class GetAccount {
                     "threshold=" + threshold +
                     ", keys=" + Arrays.toString(keys) +
                     ", accounts=" + Arrays.toString(accounts) +
+                    ", waits=" + Arrays.toString(waits) +
                     '}';
         }
     }

@@ -105,7 +105,7 @@ public class Chain {
     }
 
     public GetAccount.Response getAccount(String accountName) {
-        GetAccount.Response getAccountRespons = null;
+        GetAccount.Response getAccountResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_account");
@@ -123,7 +123,7 @@ public class Chain {
             System.out.println("Get Account Response: " + response);
 
             if (response.response != null) {
-                getAccountRespons = om.readValue(response.response, GetAccount.Response.class);
+                getAccountResponse = om.readValue(response.response, GetAccount.Response.class);
             } else {
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
                 System.out.println("Error Message: " + errorMessage);
@@ -138,7 +138,7 @@ public class Chain {
             e.printStackTrace();
         }
 
-        return getAccountRespons;
+        return getAccountResponse;
     }
 
     public GetCode.Response getCode(String accountName) {
@@ -342,8 +342,57 @@ public class Chain {
         return transactionResponse;
     }
 
-    public void pushTransactions(Transaction[] signedTransactions) {
+    public List<Transaction.Response> pushTransactions(List<SignedTransaction> signedTransactions) {
+        List<Transaction.Response> transactionResponse = null;
 
+        try {
+            List<Map<String, Object>> pushTrxs = new ArrayList<Map<String, Object>>();
+
+            URL getBlockURL = new URL(chainURL, "/v1/chain/push_transactions");
+
+            for ( SignedTransaction transaction : signedTransactions) {
+                EOSByteWriter writer = new EOSByteWriter(4096);
+                transaction.pack(writer);
+                String packedTrx = Hex.encodeHexString(writer.toBytes());
+
+                Map<String, Object> pushTrx = new LinkedHashMap<String, Object>();
+                pushTrx.put("signatures", transaction.signatures);
+                pushTrx.put("compression", "none");
+                pushTrx.put("packed_context_free_data", "");
+                pushTrx.put("packed_trx", packedTrx);
+
+                pushTrxs.add(pushTrx);
+            }
+
+            ObjectMapper om = new ObjectMapper();
+            String requestString = om.writeValueAsString(pushTrxs);
+
+
+            System.out.println("Push TX Request: " + requestString);
+
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
+
+            System.out.println("Push TX Response: " + response);
+
+            if (response.response != null) {
+                transactionResponse = om.readValue(response.response, List.class);
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                System.out.println("Error Message: " + errorMessage);
+            }
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (JsonParseException e) {
+            e.printStackTrace();
+        } catch (JsonMappingException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return transactionResponse;
     }
 
     public GetRequiredKeys.Response getRequiredKeys(Transaction transaction, List<String> availableKeys) {

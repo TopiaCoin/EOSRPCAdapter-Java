@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.messages.CreateKey;
 import io.topiacoin.eosrpcadapter.messages.CreateWallet;
+import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 import io.topiacoin.eosrpcadapter.messages.ImportKey;
 import io.topiacoin.eosrpcadapter.messages.ListKeys;
 import io.topiacoin.eosrpcadapter.messages.ListWallets;
@@ -160,8 +161,16 @@ public class Wallet {
             if ( response.response != null ) {
                 openInfoResponse = new UnlockWallet.Response();
             }else {
+
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                System.out.println ( "Error Message: " + errorMessage);
+                ObjectMapper om = new ObjectMapper();
+                ErrorResponse errorResponse = om.readValue(errorMessage, ErrorResponse.class);
+                System.out.println ( "Error Response: " + errorResponse);
+
+                if ( errorResponse.error.code == 3120007 ) {
+                    // The wallet is already unlocked, so just ignore the error
+                    openInfoResponse = new UnlockWallet.Response();
+                }
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -227,10 +236,15 @@ public class Wallet {
 
             System.out.println("response: " + response);
 
-            ObjectMapper om = new ObjectMapper();
-            List<List<String>> keys = om.readValue(response.response, List.class);
-            openInfoResponse = new ListKeys.Response();
-            openInfoResponse.keys = keys ;
+            if ( response.response != null ) {
+                ObjectMapper om = new ObjectMapper();
+                List<List<String>> keys = om.readValue(response.response, List.class);
+                openInfoResponse = new ListKeys.Response();
+                openInfoResponse.keys = keys;
+            } else {
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
+                System.out.println ( "Error Message: " + errorMessage);
+            }
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {

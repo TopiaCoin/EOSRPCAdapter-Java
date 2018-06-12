@@ -14,15 +14,19 @@ public class GetCode {
         public String name;
         public String code_hash;
         public String wast;
+        public String wasm;
         public ContractABI abi;
     }
 
     public static class ContractABI {
+        public String version;
         public ContractType[] types;
         public ContractStruct[] structs;
         public ContractAction[] actions;
         public ContractTable[] tables;
         public String[] ricardian_clauses;
+        public String[] error_messages;
+        public String[] abi_extensions;
     }
 
     public static class ContractType {

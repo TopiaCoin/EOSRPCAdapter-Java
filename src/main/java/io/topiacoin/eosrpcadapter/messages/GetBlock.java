@@ -21,7 +21,7 @@ public class GetBlock {
         public List<String> new_producers;
         public List<String> header_extensions;
         public String producer_signature;
-        public List<Transaction> transactions;
+        public List<BlockTransaction> transactions;
         public List<String> block_extensions;
 
         @JsonIgnore
@@ -54,6 +54,13 @@ public class GetBlock {
                     ", block_num=" + block_num +
                     ", ref_block_prefix=" + ref_block_prefix +
                     '}';
+        }
+
+        public static class BlockTransaction extends Transaction {
+            public String status;
+            public long cpu_usage_us;
+            public long net_usage_words;
+            public List<Transaction> trx;
         }
     }
 }

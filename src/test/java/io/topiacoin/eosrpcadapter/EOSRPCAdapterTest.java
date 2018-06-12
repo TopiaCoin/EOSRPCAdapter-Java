@@ -128,11 +128,11 @@ public class EOSRPCAdapterTest {
         Chain chain = adapter.chain();
 
         Map args = new HashMap();
-        args.put("owner", "inita");
-        args.put("guid", "0x123456789");
-        args.put("workspaceName", "Foo");
+        args.put("from", "inita");
+        args.put("type", "foo");
+        args.put("data", "bar");
 
-        AbiJsonToBin.Response response = chain.abiJsonToBin("inita", "create", args);
+        AbiJsonToBin.Response response = chain.abiJsonToBin("inita", "anyaction", args);
 
         assertNotNull(response);
     }
@@ -142,41 +142,11 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        AbiBinToJson.Response response = chain.abiBinToJson("inita", "create", "000000000093dd748967452301000000000000000000000003466f6f");
+        AbiBinToJson.Response response = chain.abiBinToJson("inita", "anyaction", "000000000093dd7403666f6f03626172");
 
         assertNotNull(response);
 
         System.out.println("Args: " + response.args);
-    }
-
-    @Test
-    public void testChainPushTransaction() throws Exception {
-        EOSRPCAdapter adapter = getEosRPCAdapter();
-        Chain chain = adapter.chain();
-
-        Map args = new HashMap();
-        args.put("owner", "inita");
-        args.put("guid", "0x123456789");
-        args.put("workspaceName", "Foo");
-
-        Date expDate = new Date(System.currentTimeMillis() + 60000);
-
-        Transaction transaction = null;
-        List<String> scope = Arrays.asList("inita");
-        Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.actor="inita";
-        authorization.permission="active";
-        List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
-        transaction = chain.createRawTransaction("inita", "create", args, scope, authorizations, expDate);
-
-//        Transaction.Response response = chain.pushTransaction(transaction);
-
-//        assertNotNull(response);
-    }
-
-    @Test
-    public void testChainPushTransactions() throws Exception {
-        fail ( "Test Not Yet Implemented");
     }
 
     @Test
@@ -185,10 +155,12 @@ public class EOSRPCAdapterTest {
         Chain chain = adapter.chain();
         Wallet wallet = adapter.wallet();
 
+        UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
+
         Map args = new HashMap();
-        args.put("inviter", "inita");
-        args.put("guid", "0x123456789");
-        args.put("invitee", "eosio");
+        args.put("from", "inita");
+        args.put("type", "foo");
+        args.put("data", "bar");
 
         Date expDate = new Date(System.currentTimeMillis() + 60000);
 
@@ -198,7 +170,7 @@ public class EOSRPCAdapterTest {
         authorization.actor="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
-        transaction = chain.createRawTransaction("inita", "invite", args, scope, authorizations, expDate);
+        transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;;
 
@@ -235,7 +207,9 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Wallet wallet = adapter.wallet();
 
-        CreateWallet.Response response = wallet.create("test");
+        String walletName = "test-" + System.currentTimeMillis();
+
+        CreateWallet.Response response = wallet.create(walletName);
 
         assertNotNull(response);
     }
@@ -333,9 +307,9 @@ public class EOSRPCAdapterTest {
         UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
 
         Map args = new HashMap();
-        args.put("inviter", "inita");
-        args.put("guid", "0x123456789");
-        args.put("invitee", "eosio");
+        args.put("from", "inita");
+        args.put("type", "foo");
+        args.put("data", "bar");
 
         Date expDate = new Date(System.currentTimeMillis() + 60000);
 
@@ -345,24 +319,13 @@ public class EOSRPCAdapterTest {
         authorization.actor="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
-        transaction = chain.createRawTransaction("inita", "invite", args, scope, authorizations, expDate);
-
+        transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;
 
         SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys) ;
 
         assertNotNull ( signedTransaction ) ;
-    }
-
-    @Test
-    public void testWalletSignTransactionWithChainID() throws Exception {
-        fail ( "Test Not Yet Implemented" ) ;
-    }
-
-    @Test
-    public void testWallet() throws Exception {
-        fail ( "Test Not Yet Implemented" ) ;
     }
 
     // ======== Integration Tests ========
@@ -401,12 +364,73 @@ public class EOSRPCAdapterTest {
 
         assertNotNull ( signedTransaction ) ;
 
-//        String packed_trx = chain.packTransaction(signedTransaction) ;
-//
-//        System.out.println("packed_trx: " + packed_trx);
-
         Transaction.Response pushResponse = chain.pushTransaction(signedTransaction);
 
         System.out.println ( "Push Response: " + pushResponse ) ;
+    }
+
+    @Test
+    public void testFullMultipleTransactionSubmission() throws  Exception {
+        EOSRPCAdapter adapter = getEosRPCAdapter();
+        Chain chain = adapter.chain();
+        Wallet wallet = adapter.wallet();
+
+        // Unlock the new wallet
+        UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
+
+        Date expDate = new Date(System.currentTimeMillis() + 60000);
+
+        GetInfo.Response chainInfo = chain.getInfo();
+
+        Transaction transaction1 = null;
+        {
+            Map args = new HashMap();
+            args.put("from", "inita");
+            args.put("type", "foo");
+            args.put("data", "bar");
+
+            List<String> scope = Arrays.asList("inita");
+            Transaction.Authorization authorization = new Transaction.Authorization();
+            authorization.actor = "inita";
+            authorization.permission = "active";
+            List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
+            transaction1 = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
+        }
+
+        Transaction transaction2 = null;
+        {
+            Map args = new HashMap();
+            args.put("from", "inita");
+            args.put("type", "fizz");
+            args.put("data", "buzz");
+
+            List<String> scope = Arrays.asList("inita");
+            Transaction.Authorization authorization = new Transaction.Authorization();
+            authorization.actor = "inita";
+            authorization.permission = "active";
+            List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
+            transaction2 = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
+        }
+
+
+        List<String> publicKeys = wallet.getPublicKeys().publicKeys;
+
+        GetRequiredKeys.Response reqKey1Response = chain.getRequiredKeys(transaction1, publicKeys);
+        SignedTransaction signedTransaction1 = wallet.signTransaction(transaction1, reqKey1Response.required_keys, chainInfo.chain_id) ;
+
+        assertNotNull ( signedTransaction1 ) ;
+
+        GetRequiredKeys.Response reqKey2Response = chain.getRequiredKeys(transaction2, publicKeys);
+        SignedTransaction signedTransaction2 = wallet.signTransaction(transaction2, reqKey1Response.required_keys, chainInfo.chain_id) ;
+
+        assertNotNull ( signedTransaction2 ) ;
+
+        List<SignedTransaction> transactions = new ArrayList<SignedTransaction>();
+        transactions.add(signedTransaction1);
+        transactions.add(signedTransaction2);
+
+        List<Transaction.Response> pushResponses = chain.pushTransactions(transactions);
+
+        System.out.println ( "Push Response: " + pushResponses ) ;
     }
 }
