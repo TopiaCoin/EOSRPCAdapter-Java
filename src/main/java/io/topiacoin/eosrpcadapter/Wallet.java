@@ -1,6 +1,8 @@
 package io.topiacoin.eosrpcadapter;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.DeserializationConfig;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.messages.CreateKey;
@@ -153,7 +155,7 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, request);
 
-            System.out.println("response: " + response);
+            System.out.println("Unlock Response: " + response);
 
             if ( response.response != null ) {
                 openInfoResponse = new UnlockWallet.Response();
@@ -198,7 +200,7 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
 
-            System.out.println("response: " + response);
+            System.out.println("Get Public Response: " + response);
 
             if ( response.response != null ) {
                 ObjectMapper om = new ObjectMapper();
@@ -305,6 +307,7 @@ public class Wallet {
 
         try {
             ObjectMapper om = new ObjectMapper();
+            om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
             URL getInfoURL = new URL(walletURL, "/v1/wallet/sign_transaction");
 
@@ -319,10 +322,12 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("Sign Response: " + response);
 
             if ( response.response != null ) {
                 signedTransaction = om.readValue(response.response, SignedTransaction.class);
+                List<String> signatures = signedTransaction.signatures;
+                signedTransaction = new SignedTransaction(transaction, signatures);
             }else {
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
                 System.out.println ( "Error Message: " + errorMessage);

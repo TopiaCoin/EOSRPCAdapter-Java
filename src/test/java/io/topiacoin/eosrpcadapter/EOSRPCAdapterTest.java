@@ -164,7 +164,7 @@ public class EOSRPCAdapterTest {
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
         Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.account="inita";
+        authorization.actor="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "create", args, scope, authorizations, expDate);
@@ -195,7 +195,7 @@ public class EOSRPCAdapterTest {
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
         Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.account="inita";
+        authorization.actor="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "invite", args, scope, authorizations, expDate);
@@ -342,7 +342,7 @@ public class EOSRPCAdapterTest {
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
         Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.account="inita";
+        authorization.actor="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "invite", args, scope, authorizations, expDate);
@@ -381,67 +381,25 @@ public class EOSRPCAdapterTest {
         args.put("type", "foo");
         args.put("data", "bar");
 
-        Date expDate = new Date(System.currentTimeMillis() + 600000);
+        Date expDate = new Date(System.currentTimeMillis() + 30000);
 
-        /*
-[
-  {
-    "ref_block_num": "66248",
-    "ref_block_prefix": "1445112014",
-    "expiration": "2018-06-11T22:38:22",
-    "scope": [
-      "inita"
-    ],
-    "actions": [
-      {
-        "code": "inita",
-        "type": "anyaction",
-        "recipients": [
-          "inita"
-        ],
-        "authorizations": [
-          {
-            "account": "inita",
-            "permission": "active"
-          }
-        ],
-        "data": "000000000093dd74047465737403626172"
-      }
-    ],
-    "signatures": [],
-    "authorizations": []
-  },
-  [
-    "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV",
-    "EOS6js37ofHj5Tf3DsGiSuwjA1BrkyuhMaoChhwtGhKdRRGUuXBvu",
-    "EOS7NjEaNA9GGyK8W7nuH4NHiq9i4C8AuHYcsRijqfQrypfjMC36M"
-  ],
-  ""
-]
-         */
+        GetInfo.Response chainInfo = chain.getInfo();
+
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
         Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.account="inita";
+        authorization.actor="inita";
         authorization.permission="active";
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
         List<String> publicKeys = wallet.getPublicKeys().publicKeys;
 
-        SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys.toArray(new String[0])) ;
+        GetRequiredKeys.Response reqKeyResponse = chain.getRequiredKeys(transaction, publicKeys.toArray(new String[0]));
+
+        SignedTransaction signedTransaction = wallet.signTransaction(transaction, reqKeyResponse.required_keys.toArray(new String[0]), chainInfo.chain_id) ;
 
         assertNotNull ( signedTransaction ) ;
-
-        signedTransaction.actions = new ArrayList<SignedTransaction.SignedAction>();
-        for (Transaction.Action action : transaction.actions) {
-            SignedTransaction.SignedAction signedAction = new SignedTransaction.SignedAction();
-            signedAction.name = action.type;
-            signedAction.account = action.code;
-            signedAction.data = action.data;
-            signedAction.authorization = action.authorizations;
-            signedTransaction.actions.add(signedAction) ;
-        }
 
         String packed_trx = chain.packTransaction(signedTransaction) ;
 

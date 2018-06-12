@@ -20,14 +20,13 @@ import org.apache.commons.io.IOUtils;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -50,7 +49,7 @@ public class Chain {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
 
-            System.out.println("response: " + response);
+            System.out.println("Get Info Response: " + response);
 
             ObjectMapper om = new ObjectMapper();
             getInfoResponse = om.readValue(response.response, GetInfo.Response.class);
@@ -79,11 +78,11 @@ public class Chain {
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("requestString: " + requestString);
+            System.out.println("Get Block Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("Get Block Response: " + response);
 
             if (response.response != null) {
                 getBlockResponse = om.readValue(response.response, GetBlock.Response.class);
@@ -116,11 +115,11 @@ public class Chain {
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("requestString: " + requestString);
+            System.out.println("Get Account Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("Get Account Response: " + response);
 
             if (response.response != null) {
                 getAccountRespons = om.readValue(response.response, GetAccount.Response.class);
@@ -153,11 +152,11 @@ public class Chain {
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("requestString: " + requestString);
+            System.out.println("Get Code Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("Get Code Response: " + response);
 
             if (response.response != null) {
                 getCodeResponse = om.readValue(response.response, GetCode.Response.class);
@@ -232,11 +231,11 @@ public class Chain {
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("requestString: " + requestString);
+            System.out.println("ABI JSON to Bin Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("ABI JSON to Bin Response: " + response);
 
             if (response.response != null) {
                 abiJsonToBinResponse = om.readValue(response.response, AbiJsonToBin.Response.class);
@@ -271,11 +270,11 @@ public class Chain {
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("requestString: " + requestString);
+            System.out.println("ABI Bin to JSON Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("ABI Bin to JSON Response: " + response);
 
             if (response.response != null) {
                 abiBinToJsonResponse = om.readValue(response.response, AbiBinToJson.Response.class);
@@ -302,14 +301,24 @@ public class Chain {
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/push_transaction");
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(transaction);
+            EOSByteWriter writer = new EOSByteWriter(4096);
+            transaction.pack(writer);
+            String packedTrx = Hex.encodeHexString(writer.toBytes());
 
-            System.out.println("requestString: " + requestString);
+            Map<String, Object> pushTrx = new HashMap<String,Object>();
+            pushTrx.put("signatures", transaction.signatures);
+            pushTrx.put("compression", "none");
+            pushTrx.put("packed_context_free_data", "");
+            pushTrx.put("packed_trx", packedTrx);
+
+            ObjectMapper om = new ObjectMapper();
+            String requestString = om.writeValueAsString(pushTrx);
+
+            System.out.println("Push TX Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("Push TX Response: " + response);
 
             if (response.response != null) {
                 transactionResponse = om.readValue(response.response, Transaction.Response.class);
@@ -324,6 +333,8 @@ public class Chain {
         } catch (JsonMappingException e) {
             e.printStackTrace();
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
             e.printStackTrace();
         }
 
@@ -347,11 +358,11 @@ public class Chain {
             ObjectMapper om = new ObjectMapper();
             String requestString = om.writeValueAsString(request);
 
-            System.out.println("requestString: " + requestString);
+            System.out.println("Get Required Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            System.out.println("Get Required Response: " + response);
 
             if (response.response != null) {
                 getTableRowsResponse = om.readValue(response.response, GetRequiredKeys.Response.class);
@@ -372,7 +383,7 @@ public class Chain {
         return getTableRowsResponse;
     }
 
-    public Transaction createRawTransaction(String code, String action, Map args, List<String> scopes, List<Transaction.Authorization> authorizations, Date expirationDate) {
+    public Transaction createRawTransaction(String account, String name, Map args, List<String> scopes, List<Transaction.Authorization> authorizations, Date expirationDate) {
 
         TimeZone tz = TimeZone.getTimeZone("UTC");
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -380,19 +391,18 @@ public class Chain {
         String expDateString = df.format(expirationDate);
 
         GetInfo.Response info = getInfo();
-        String last_irreversible_block_num = Long.toString(info.last_irreversible_block_num);
-        GetBlock.Response blockInfo = getBlock(last_irreversible_block_num);
-        String last_irreversible_block_prefix = Long.toString(blockInfo.ref_block_prefix);
+        long last_irreversible_block_num = info.last_irreversible_block_num;
+        GetBlock.Response blockInfo = getBlock(Long.toString(last_irreversible_block_num));
+        long last_irreversible_block_prefix = blockInfo.ref_block_prefix;
 
-        AbiJsonToBin.Response binArgsResponse = abiJsonToBin(code, action, args);
+        AbiJsonToBin.Response binArgsResponse = abiJsonToBin(account, name, args);
         String binArgs = binArgsResponse.binargs;
 
         Transaction.Action txAction = new Transaction.Action();
-        txAction.code = code;
-        txAction.type = action;
+        txAction.account = account;
+        txAction.name = name;
         txAction.data = binArgs;
-        txAction.authorizations = authorizations;
-        txAction.recipients = new String[]{code};
+        txAction.authorization = authorizations;
 
         Transaction transaction = new Transaction();
         transaction.ref_block_num = last_irreversible_block_num;

@@ -1,6 +1,7 @@
 package io.topiacoin.eosrpcadapter.util;
 
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
+import io.topiacoin.eosrpcadapter.messages.Transaction;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -71,13 +72,5 @@ public class EOSByteWriter {
             b |= ((( data > 0) ? 1 : 0) << 7) ;
             put(b);
         } while ( data > 0) ;
-    }
-
-    public void putCollection(List<Object> dataList) {
-
-    }
-
-    public void putAction(SignedTransaction.SignedAction action) {
-
     }
 }
