@@ -117,7 +117,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        GetTableRows.Response response = chain.getTableRows("inita", "inita", "workspace", true);
+        GetTableRows.Response response = chain.getTableRows("sampledb", "sampledb", "workspace", true);
 
         assertNotNull(response);
     }
@@ -292,7 +292,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Wallet wallet = adapter.wallet();
 
-        SetTimeout.Response response = wallet.setTimeout(10);
+        SetTimeout.Response response = wallet.setTimeout(3600);
 
         assertNotNull(response);
     }
