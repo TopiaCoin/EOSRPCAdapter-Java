@@ -1,23 +1,13 @@
 package io.topiacoin.eosrpcadapter;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.topiacoin.eosrpcadapter.messages.CreateKey;
-import io.topiacoin.eosrpcadapter.messages.CreateWallet;
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
-import io.topiacoin.eosrpcadapter.messages.ImportKey;
-import io.topiacoin.eosrpcadapter.messages.ListKeys;
-import io.topiacoin.eosrpcadapter.messages.ListWallets;
-import io.topiacoin.eosrpcadapter.messages.LockWallet;
-import io.topiacoin.eosrpcadapter.messages.OpenWallet;
-import io.topiacoin.eosrpcadapter.messages.ListPublicKeys;
-import io.topiacoin.eosrpcadapter.messages.SetTimeout;
+import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
-import io.topiacoin.eosrpcadapter.messages.UnlockWallet;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -36,17 +26,15 @@ public class Wallet {
         this.rpcAdapter = rpcAdapter;
     }
 
-    public CreateKey.Response createKey() {
+    public String createKey() {
 
         EOSKey eosKey = EOSKey.randomKey();
-        CreateKey.Response response = new CreateKey.Response();
-        response.eosKey = eosKey.toWif();
 
-        return response ;
+        return eosKey.toWif() ;
     }
 
-    public ListWallets.Response list() {
-        ListWallets.Response getInfoResponse = null;
+    public List<String> list() {
+        List<String> walletList = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/list_wallets");
@@ -55,10 +43,10 @@ public class Wallet {
 
             System.out.println("response: " + response);
 
-            ObjectMapper om = new ObjectMapper();
-            getInfoResponse = new ListWallets.Response();
-            List<String> wallets = om.readValue(response.response, List.class);
-            getInfoResponse.wallets = wallets;
+            if (response.response != null ) {
+                ObjectMapper om = new ObjectMapper();
+                walletList = om.readValue(response.response, List.class);
+            }
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (JsonParseException e) {
@@ -69,11 +57,11 @@ public class Wallet {
             e.printStackTrace();
         }
 
-        return getInfoResponse;
+        return walletList;
     }
 
-    public OpenWallet.Response open(String name) {
-        OpenWallet.Response openInfoResponse = null;
+    public boolean open(String name) {
+        boolean opened = false ;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/open");
@@ -84,23 +72,17 @@ public class Wallet {
 
             System.out.println("response: " + response);
 
-            ObjectMapper om = new ObjectMapper();
-            openInfoResponse =  om.readValue(response.response, OpenWallet.Response.class);
+            opened = response.response != null ;
+
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return opened;
     }
 
-    public CreateWallet.Response create(String name) {
-        CreateWallet.Response openInfoResponse = null;
+    public String create(String name) {
+        String password = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/create");
@@ -111,19 +93,18 @@ public class Wallet {
 
             System.out.println("response: " + response);
 
-            openInfoResponse = new CreateWallet.Response();
-            openInfoResponse.password = response.response.replaceAll("\"", "") ;
+            if ( response.response != null ) {
+                password = response.response.replaceAll("\"", "");
+            }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return password;
     }
 
-    public LockWallet.Response lock(String name) {
-        LockWallet.Response openInfoResponse = null;
+    public boolean lock(String name) {
+        boolean locked = false ;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/lock");
@@ -134,18 +115,16 @@ public class Wallet {
 
             System.out.println("response: " + response);
 
-            openInfoResponse = new LockWallet.Response();
+            locked = response.response != null;
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return locked;
     }
 
-    public UnlockWallet.Response unlock(String name, String password) {
-        UnlockWallet.Response openInfoResponse = null;
+    public boolean unlock(String name, String password) {
+        boolean unlocked = false ;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/unlock");
@@ -159,7 +138,7 @@ public class Wallet {
             System.out.println("Unlock Response: " + response);
 
             if ( response.response != null ) {
-                openInfoResponse = new UnlockWallet.Response();
+                unlocked = true ;
             }else {
 
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
@@ -167,10 +146,8 @@ public class Wallet {
                 ErrorResponse errorResponse = om.readValue(errorMessage, ErrorResponse.class);
                 System.out.println ( "Error Response: " + errorResponse);
 
-                if ( errorResponse.error.code == 3120007 ) {
-                    // The wallet is already unlocked, so just ignore the error
-                    openInfoResponse = new UnlockWallet.Response();
-                }
+                // 3120007 - The wallet is already unlocked, so just ignore the error
+                unlocked = ( errorResponse.error.code == 3120007 ) ;
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -178,11 +155,11 @@ public class Wallet {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return unlocked;
     }
 
-    public LockWallet.Response lockAll() {
-        LockWallet.Response openInfoResponse = null;
+    public boolean lockAll() {
+        boolean locked = false ;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/lock_all");
@@ -191,18 +168,16 @@ public class Wallet {
 
             System.out.println("response: " + response);
 
-            openInfoResponse = new LockWallet.Response();
+            locked = (response.response != null );
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return locked;
     }
 
-    public ListPublicKeys.Response getPublicKeys() {
-        ListPublicKeys.Response openInfoResponse = null;
+    public List<String> getPublicKeys() {
+        List<String> publicKeys = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/get_public_keys");
@@ -213,9 +188,7 @@ public class Wallet {
 
             if ( response.response != null ) {
                 ObjectMapper om = new ObjectMapper();
-                List<String> publicKeys = om.readValue(response.response, List.class);
-                openInfoResponse = new ListPublicKeys.Response();
-                openInfoResponse.publicKeys = publicKeys;
+                publicKeys = om.readValue(response.response, List.class);
             }
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -223,24 +196,32 @@ public class Wallet {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return publicKeys;
     }
 
-    public ListKeys.Response listKeys() {
-        ListKeys.Response openInfoResponse = null;
+    public Keys listKeys(String name, String password) {
+        Keys keys = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/list_keys");
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
+            String request = "[\"" + name + "\",\"" + password + "\"]" ;
 
-            System.out.println("response: " + response);
+            System.out.println("List Keys Request: " + request);
+
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, request);
+
+            System.out.println("List Keys Response: " + response);
 
             if ( response.response != null ) {
                 ObjectMapper om = new ObjectMapper();
-                List<List<String>> keys = om.readValue(response.response, List.class);
-                openInfoResponse = new ListKeys.Response();
-                openInfoResponse.keys = keys;
+                List<List<String>> listOfKeyPairs = om.readValue(response.response, List.class);
+                keys = new Keys();
+                keys.keys = new ArrayList<Keys.KeyPair>();
+                for ( List<String> curKeyPair : listOfKeyPairs ) {
+                    Keys.KeyPair keyPair = new Keys.KeyPair(curKeyPair.get(0), curKeyPair.get(1));
+                    keys.keys.add(keyPair);
+                }
             } else {
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
                 System.out.println ( "Error Message: " + errorMessage);
@@ -251,11 +232,11 @@ public class Wallet {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return keys;
     }
 
-    public ImportKey.Response importKey(String name, String key) {
-        ImportKey.Response openInfoResponse = null;
+    public boolean importKey(String name, String key) {
+        boolean imported = false ;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/import_key");
@@ -269,7 +250,7 @@ public class Wallet {
             System.out.println("response: " + response);
 
             if ( response.response != null ) {
-                openInfoResponse = new ImportKey.Response();
+                imported = true ;
             }else {
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
                 System.out.println ( "Error Message: " + errorMessage);
@@ -280,11 +261,11 @@ public class Wallet {
             e.printStackTrace();
         }
 
-        return openInfoResponse;
+        return imported;
     }
 
-    public SetTimeout.Response setTimeout(int timeoutSecs) {
-        SetTimeout.Response setTimeoutResponse = null;
+    public boolean setTimeout(int timeoutSecs) {
+        boolean timeoutSet = false ;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/set_timeout");
@@ -298,7 +279,7 @@ public class Wallet {
             System.out.println("response: " + response);
 
             if ( response.response != null ) {
-                setTimeoutResponse = new SetTimeout.Response();
+                timeoutSet = true ;
             }else {
                 String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
                 System.out.println ( "Error Message: " + errorMessage);
@@ -309,7 +290,7 @@ public class Wallet {
             e.printStackTrace();
         }
 
-        return setTimeoutResponse;
+        return timeoutSet;
     }
 
     public SignedTransaction signTransaction (Transaction transaction, List<String> keys) {

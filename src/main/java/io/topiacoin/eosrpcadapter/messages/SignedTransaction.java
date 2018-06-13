@@ -1,15 +1,6 @@
 package io.topiacoin.eosrpcadapter.messages;
 
-import io.topiacoin.eosrpcadapter.util.Base32;
-import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
-import org.bouncycastle.util.encoders.Hex;
-
-import java.math.BigInteger;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class SignedTransaction extends Transaction {

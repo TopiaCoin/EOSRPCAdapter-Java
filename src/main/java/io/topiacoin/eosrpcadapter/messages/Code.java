@@ -1,22 +1,12 @@
 package io.topiacoin.eosrpcadapter.messages;
 
-import java.util.List;
-
-public class GetCode {
-
-    public static class Request {
-
-        public String account_name;
-    }
-
-    public static class Response {
-        public String account_name;
-        public String name;
-        public String code_hash;
-        public String wast;
-        public String wasm;
-        public ContractABI abi;
-    }
+public class Code {
+    public String account_name;
+    public String name;
+    public String code_hash;
+    public String wast;
+    public String wasm;
+    public ContractABI abi;
 
     public static class ContractABI {
         public String version;
@@ -58,5 +48,4 @@ public class GetCode {
         public String name;
         public String type;
     }
-
 }

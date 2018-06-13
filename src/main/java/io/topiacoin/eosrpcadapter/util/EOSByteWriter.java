@@ -1,11 +1,7 @@
 package io.topiacoin.eosrpcadapter.util;
 
-import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
-import io.topiacoin.eosrpcadapter.messages.Transaction;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.List;
 
 public class EOSByteWriter {
 

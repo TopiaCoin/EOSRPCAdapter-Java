@@ -1,26 +1,16 @@
 package io.topiacoin.eosrpcadapter;
 
-import io.topiacoin.eosrpcadapter.messages.AbiBinToJson;
-import io.topiacoin.eosrpcadapter.messages.AbiJsonToBin;
-import io.topiacoin.eosrpcadapter.messages.CreateKey;
-import io.topiacoin.eosrpcadapter.messages.CreateWallet;
-import io.topiacoin.eosrpcadapter.messages.GetAccount;
-import io.topiacoin.eosrpcadapter.messages.GetBlock;
-import io.topiacoin.eosrpcadapter.messages.GetCode;
-import io.topiacoin.eosrpcadapter.messages.GetInfo;
-import io.topiacoin.eosrpcadapter.messages.GetRequiredKeys;
+import io.topiacoin.eosrpcadapter.messages.AccountInfo;
+import io.topiacoin.eosrpcadapter.messages.BlockInfo;
+import io.topiacoin.eosrpcadapter.messages.ChainInfo;
+import io.topiacoin.eosrpcadapter.messages.Code;
 import io.topiacoin.eosrpcadapter.messages.GetTableRows;
-import io.topiacoin.eosrpcadapter.messages.ImportKey;
-import io.topiacoin.eosrpcadapter.messages.ListKeys;
-import io.topiacoin.eosrpcadapter.messages.ListPublicKeys;
-import io.topiacoin.eosrpcadapter.messages.ListWallets;
-import io.topiacoin.eosrpcadapter.messages.LockWallet;
-import io.topiacoin.eosrpcadapter.messages.OpenWallet;
-import io.topiacoin.eosrpcadapter.messages.SetTimeout;
+import io.topiacoin.eosrpcadapter.messages.Keys;
+import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
-import io.topiacoin.eosrpcadapter.messages.UnlockWallet;
-import org.junit.Ignore;
+import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
+import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 import org.junit.Test;
 
 import java.net.MalformedURLException;
@@ -76,7 +66,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        GetInfo.Response response = chain.getInfo();
+        ChainInfo response = chain.getInfo();
 
         assertNotNull(response);
     }
@@ -86,7 +76,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        GetBlock.Response response = chain.getBlock("1");
+        BlockInfo response = chain.getBlock("1");
 
         assertNotNull(response);
     }
@@ -96,7 +86,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        GetAccount.Response response = chain.getAccount("inita");
+        AccountInfo response = chain.getAccount("inita");
 
         assertNotNull(response);
     }
@@ -106,7 +96,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        GetCode.Response response = chain.getCode("inita");
+        Code response = chain.getCode("inita");
 
         assertNotNull(response);
     }
@@ -127,12 +117,12 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        Map args = new HashMap();
+        Map<String,String> args = new HashMap<String,String>();
         args.put("from", "inita");
         args.put("type", "foo");
         args.put("data", "bar");
 
-        AbiJsonToBin.Response response = chain.abiJsonToBin("inita", "anyaction", args);
+        TransactionBinArgs response = chain.abiJsonToBin("inita", "anyaction", args);
 
         assertNotNull(response);
     }
@@ -142,7 +132,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        AbiBinToJson.Response response = chain.abiBinToJson("inita", "anyaction", "000000000093dd7403666f6f03626172");
+        TransactionJSONArgs response = chain.abiBinToJson("inita", "anyaction", "000000000093dd7403666f6f03626172");
 
         assertNotNull(response);
 
@@ -155,9 +145,9 @@ public class EOSRPCAdapterTest {
         Chain chain = adapter.chain();
         Wallet wallet = adapter.wallet();
 
-        UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
+        boolean unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
 
-        Map args = new HashMap();
+        Map<String,String> args = new HashMap<String,String>();
         args.put("from", "inita");
         args.put("type", "foo");
         args.put("data", "bar");
@@ -172,9 +162,9 @@ public class EOSRPCAdapterTest {
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
-        List<String> publicKeys = wallet.getPublicKeys().publicKeys;;
+        List<String> publicKeys = wallet.getPublicKeys();
 
-        GetRequiredKeys.Response response = chain.getRequiredKeys(transaction, publicKeys);
+        RequiredKeys response = chain.getRequiredKeys(transaction, publicKeys);
 
         assertNotNull(response);
     }
@@ -187,7 +177,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Wallet wallet = adapter.wallet();
 
-        ListWallets.Response response = wallet.list();
+        List<String> response = wallet.list();
 
         assertNotNull(response);
     }
@@ -197,9 +187,9 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Wallet wallet = adapter.wallet();
 
-        OpenWallet.Response response = wallet.open("default");
+        boolean response = wallet.open("default");
 
-        assertNotNull(response);
+        assertTrue(response);
     }
 
     @Test
@@ -209,7 +199,7 @@ public class EOSRPCAdapterTest {
 
         String walletName = "test-" + System.currentTimeMillis();
 
-        CreateWallet.Response response = wallet.create(walletName);
+        String response = wallet.create(walletName);
 
         assertNotNull(response);
     }
@@ -220,35 +210,33 @@ public class EOSRPCAdapterTest {
         Wallet wallet = adapter.wallet();
 
         String walletName = "test-" + System.currentTimeMillis();
-        String password ;
 
-        CreateWallet.Response createResponse = wallet.create(walletName);
-        assertNotNull(createResponse);
-        password = createResponse.password;
+        String password = wallet.create(walletName);
+        assertNotNull(password);
 
-        ListWallets.Response listResponse = wallet.list();
+        List<String> listResponse = wallet.list();
         assertNotNull(listResponse);
 
-        UnlockWallet.Response unlockResponse = wallet.unlock(walletName, password);
-        assertNotNull(unlockResponse);
+        boolean unlockResponse = wallet.unlock(walletName, password);
+        assertTrue(unlockResponse);
 
         listResponse = wallet.list();
         assertNotNull(listResponse);
 
-        LockWallet.Response lockResponse = wallet.lock(walletName);
-        assertNotNull(lockResponse);
+        boolean lockResponse = wallet.lock(walletName);
+        assertTrue(lockResponse);
 
         listResponse = wallet.list();
         assertNotNull(listResponse);
 
         unlockResponse = wallet.unlock(walletName, password);
-        assertNotNull(unlockResponse);
+        assertTrue(unlockResponse);
 
         listResponse = wallet.list();
         assertNotNull(listResponse);
 
         lockResponse = wallet.lockAll();
-        assertNotNull(lockResponse);
+        assertTrue(lockResponse);
 
         listResponse = wallet.list();
         assertNotNull(listResponse);
@@ -260,31 +248,47 @@ public class EOSRPCAdapterTest {
         Wallet wallet = adapter.wallet();
 
         String walletName = "test-" + System.currentTimeMillis();
-        String password ;
 
         // Lock all Wallets
         wallet.lockAll();
 
         // Create a new wallet
-        CreateWallet.Response createResponse = wallet.create(walletName);
-        assertNotNull(createResponse);
-        password = createResponse.password;
+        String password = wallet.create(walletName);
+        assertNotNull(password);
 
         // Unlock the new wallet
-        UnlockWallet.Response unlockResponse = wallet.unlock(walletName, password);
-
-        // Create keypair
-        CreateKey.Response createKeyResponse = wallet.createKey();
-        String privateKey = createKeyResponse.eosKey;
-
-        // Import Key into Wallet
-        ImportKey.Response importResponse = wallet.importKey(walletName, privateKey);
+        boolean unlockResponse = wallet.unlock(walletName, password);
+        assertTrue(unlockResponse);
 
         // List Public Keys in Wallet
-        ListPublicKeys.Response pubKeyResponse = wallet.getPublicKeys();
+        List<String> publicKeys = wallet.getPublicKeys();
+        assertNotNull(publicKeys);
+        assertEquals(1, publicKeys.size());
 
         // List Keys in wallet
-        ListKeys.Response keysResponse = wallet.listKeys();
+        Keys keysResponse = wallet.listKeys(walletName, password);
+        assertNotNull(keysResponse);
+        assertNotNull(keysResponse.keys);
+        assertEquals(1, keysResponse.keys.size());
+
+        // Create new EOS key
+        String privateKey = wallet.createKey();
+        assertNotNull (privateKey) ;
+
+        // Import Key into Wallet
+        boolean importResponse = wallet.importKey(walletName, privateKey);
+        assertTrue(importResponse);
+
+        // List Public Keys in Wallet
+        publicKeys = wallet.getPublicKeys();
+        assertNotNull(publicKeys);
+        assertEquals(2, publicKeys.size());
+
+        // List Keys in wallet
+        keysResponse = wallet.listKeys(walletName, password);
+        assertNotNull(keysResponse);
+        assertNotNull(keysResponse.keys);
+        assertEquals(2, keysResponse.keys.size());
     }
 
     @Test
@@ -292,9 +296,9 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Wallet wallet = adapter.wallet();
 
-        SetTimeout.Response response = wallet.setTimeout(3600);
+        boolean response = wallet.setTimeout(3600);
 
-        assertNotNull(response);
+        assertTrue(response);
     }
 
     @Test
@@ -304,9 +308,9 @@ public class EOSRPCAdapterTest {
         Wallet wallet = adapter.wallet();
 
         // Unlock the new wallet
-        UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
+        boolean unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
 
-        Map args = new HashMap();
+        Map<String,String> args = new HashMap<String,String>();
         args.put("from", "inita");
         args.put("type", "foo");
         args.put("data", "bar");
@@ -321,7 +325,7 @@ public class EOSRPCAdapterTest {
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
-        List<String> publicKeys = wallet.getPublicKeys().publicKeys;
+        List<String> publicKeys = wallet.getPublicKeys();
 
         SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys) ;
 
@@ -337,16 +341,16 @@ public class EOSRPCAdapterTest {
         Wallet wallet = adapter.wallet();
 
         // Unlock the new wallet
-        UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
+        boolean unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
 
-        Map args = new HashMap();
+        Map<String,String> args = new HashMap<String,String>();
         args.put("from", "inita");
         args.put("type", "foo");
         args.put("data", "bar");
 
         Date expDate = new Date(System.currentTimeMillis() + 60000);
 
-        GetInfo.Response chainInfo = chain.getInfo();
+        ChainInfo chainInfo = chain.getInfo();
 
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
@@ -356,9 +360,9 @@ public class EOSRPCAdapterTest {
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
-        List<String> publicKeys = wallet.getPublicKeys().publicKeys;
+        List<String> publicKeys = wallet.getPublicKeys();
 
-        GetRequiredKeys.Response reqKeyResponse = chain.getRequiredKeys(transaction, publicKeys);
+        RequiredKeys reqKeyResponse = chain.getRequiredKeys(transaction, publicKeys);
 
         SignedTransaction signedTransaction = wallet.signTransaction(transaction, reqKeyResponse.required_keys, chainInfo.chain_id) ;
 
@@ -376,15 +380,15 @@ public class EOSRPCAdapterTest {
         Wallet wallet = adapter.wallet();
 
         // Unlock the new wallet
-        UnlockWallet.Response unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
+        boolean unlockResponse = wallet.unlock("default", "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1");
 
         Date expDate = new Date(System.currentTimeMillis() + 60000);
 
-        GetInfo.Response chainInfo = chain.getInfo();
+        ChainInfo chainInfo = chain.getInfo();
 
         Transaction transaction1 = null;
         {
-            Map args = new HashMap();
+            Map<String,String> args = new HashMap<String,String>();
             args.put("from", "inita");
             args.put("type", "foo");
             args.put("data", "bar");
@@ -399,7 +403,7 @@ public class EOSRPCAdapterTest {
 
         Transaction transaction2 = null;
         {
-            Map args = new HashMap();
+            Map<String,String> args = new HashMap<String,String>();
             args.put("from", "inita");
             args.put("type", "fizz");
             args.put("data", "buzz");
@@ -413,14 +417,14 @@ public class EOSRPCAdapterTest {
         }
 
 
-        List<String> publicKeys = wallet.getPublicKeys().publicKeys;
+        List<String> publicKeys = wallet.getPublicKeys();
 
-        GetRequiredKeys.Response reqKey1Response = chain.getRequiredKeys(transaction1, publicKeys);
+        RequiredKeys reqKey1Response = chain.getRequiredKeys(transaction1, publicKeys);
         SignedTransaction signedTransaction1 = wallet.signTransaction(transaction1, reqKey1Response.required_keys, chainInfo.chain_id) ;
 
         assertNotNull ( signedTransaction1 ) ;
 
-        GetRequiredKeys.Response reqKey2Response = chain.getRequiredKeys(transaction2, publicKeys);
+        RequiredKeys reqKey2Response = chain.getRequiredKeys(transaction2, publicKeys);
         SignedTransaction signedTransaction2 = wallet.signTransaction(transaction2, reqKey1Response.required_keys, chainInfo.chain_id) ;
 
         assertNotNull ( signedTransaction2 ) ;

@@ -1,7 +1,7 @@
 package io.topiacoin.eosrpcadapter;
 
-import java.math.*;
-import java.util.*;
+import java.math.BigInteger;
+import java.util.Arrays;
 
 /**
  * Base58 is a way to encode Bitcoin addresses (or arbitrary data) as alphanumeric strings.
