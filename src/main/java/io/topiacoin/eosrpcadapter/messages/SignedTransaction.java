@@ -21,8 +21,9 @@ public class SignedTransaction extends Transaction {
         this.max_net_usage_words = trx.max_net_usage_words;
         this.context_free_actions = new ArrayList<String>(trx.context_free_actions);
         this.actions = new ArrayList<Transaction.Action>(trx.actions);
-        this.signatures = new ArrayList<String>(signatures);
         this.transaction_extensions = new ArrayList<String>(trx.transaction_extensions);
         this.context_free_data = new ArrayList<String>(trx.context_free_data);
+
+        this.signatures = new ArrayList<String>(signatures);
     }
 }

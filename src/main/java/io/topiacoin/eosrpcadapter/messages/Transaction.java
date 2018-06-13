@@ -14,36 +14,6 @@ import java.util.Map;
 import java.util.TimeZone;
 
 public class Transaction {
-    /*
-    {
-      "ref_block_num": "100",
-      "ref_block_prefix": "137469861",
-      "expiration": "2017-09-25T06:28:49",
-      "scope": [
-        "initb",
-        "initc"
-      ],
-      "actions": [
-        {
-          "code": "currency",
-          "type": "transfer",
-          "recipients": [
-            "initb",
-            "initc"
-          ],
-          "authorization": [
-            {
-              "account": "initb",
-              "permission": "active"
-            }
-          ],
-          "data": "000000000041934b000000008041934be803000000000000"
-        }
-      ],
-      "signatures": [],
-      "authorization": []
-    }
-     */
 
     public String expiration;
     public long ref_block_num;
@@ -146,10 +116,10 @@ public class Transaction {
 
         public void pack(EOSByteWriter writer) {
             // Base32 decode the account and permission to long's.
-            long accountLong = Base32.decode(actor);
+            long actorLong = Base32.decode(actor);
             long permLong = Base32.decode(permission);
 
-            writer.putLong(accountLong);
+            writer.putLong(actorLong);
             writer.putLong(permLong);
         }
 
