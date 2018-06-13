@@ -1,21 +1,24 @@
 package io.topiacoin.eosrpcadapter;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.topiacoin.eosrpcadapter.exceptions.ChainException;
+import io.topiacoin.eosrpcadapter.exceptions.EOSException;
 import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.Code;
-import io.topiacoin.eosrpcadapter.messages.GetTableRows;
+import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
+import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -33,15 +36,20 @@ import java.util.TimeZone;
 
 public class Chain {
 
+    private final Log _log = LogFactory.getLog(this.getClass());
+
     private final EOSRPCAdapter rpcAdapter;
     private final URL chainURL;
+    private final ObjectMapper _objectMapper;
 
     Chain(URL chainURL, EOSRPCAdapter rpcAdapter) {
         this.chainURL = chainURL;
         this.rpcAdapter = rpcAdapter;
+        _objectMapper = new ObjectMapper();
+        _objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    public ChainInfo getInfo() {
+    public ChainInfo getInfo() throws ChainException {
         ChainInfo getInfoResponse = null;
 
         try {
@@ -49,337 +57,333 @@ public class Chain {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
 
-            System.out.println("Get Info Response: " + response);
+            _log.debug("Get Info Response: " + response);
 
-            ObjectMapper om = new ObjectMapper();
-            getInfoResponse = om.readValue(response.response, ChainInfo.class);
+            if (response.response != null) {
+                getInfoResponse = _objectMapper.readValue(response.response, ChainInfo.class);
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
+            }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return getInfoResponse;
     }
 
-    public BlockInfo getBlock(String blockNumOrID) {
+    public BlockInfo getBlock(String blockNumOrID) throws ChainException {
         BlockInfo getBlockResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_block");
 
             Map<String, String> requestMap = new HashMap<String, String>();
-            requestMap.put("block_num_or_id", blockNumOrID) ;
+            requestMap.put("block_num_or_id", blockNumOrID);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("Get Block Request: " + requestString);
+            _log.debug("Get Block Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("Get Block Response: " + response);
+            _log.debug("Get Block Response: " + response);
 
             if (response.response != null) {
-                getBlockResponse = om.readValue(response.response, BlockInfo.class);
+                getBlockResponse = _objectMapper.readValue(response.response, BlockInfo.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return getBlockResponse;
     }
 
-    public AccountInfo getAccount(String accountName) {
+    public AccountInfo getAccount(String accountName) throws ChainException {
         AccountInfo getAccountResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_account");
 
             Map<String, String> requestMap = new HashMap<String, String>();
-            requestMap.put("account_name", accountName) ;
+            requestMap.put("account_name", accountName);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("Get Account Request: " + requestString);
+            _log.debug("Get Account Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("Get Account Response: " + response);
+            _log.debug("Get Account Response: " + response);
 
             if (response.response != null) {
-                getAccountResponse = om.readValue(response.response, AccountInfo.class);
+                getAccountResponse = _objectMapper.readValue(response.response, AccountInfo.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return getAccountResponse;
     }
 
-    public Code getCode(String accountName) {
+    public Code getCode(String accountName) throws ChainException {
         Code getCodeResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_code");
 
             Map<String, String> requestMap = new HashMap<String, String>();
-            requestMap.put("account_name", accountName) ;
+            requestMap.put("account_name", accountName);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("Get Code Request: " + requestString);
+            _log.debug("Get Code Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("Get Code Response: " + response);
+            _log.debug("Get Code Response: " + response);
 
             if (response.response != null) {
-                getCodeResponse = om.readValue(response.response, Code.class);
+                getCodeResponse = _objectMapper.readValue(response.response, Code.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return getCodeResponse;
     }
 
-    public GetTableRows.Response getTableRows(String contract, String scope, String table, boolean json) {
-        GetTableRows.Response getTableRowsResponse = null;
+    public TableRows getTableRows(String contract,
+                                  String scope,
+                                  String table,
+                                  long limit,
+                                  boolean json) throws ChainException {
+        return getTableRows(contract, scope, table, "0", "-1", limit, json);
+    }
+
+    public TableRows getTableRows(String contract,
+                                  String scope,
+                                  String table,
+                                  String lowerBound,
+                                  String upperBound,
+                                  long limit,
+                                  boolean json) throws ChainException {
+        TableRows getTableRowsResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_table_rows");
 
             Map<String, Object> requestMap = new HashMap<String, Object>();
-            requestMap.put("code", contract) ;
-            requestMap.put("scope", scope) ;
-            requestMap.put("table", table) ;
-            requestMap.put("json", json) ;
+            requestMap.put("code", contract);
+            requestMap.put("scope", scope);
+            requestMap.put("table", table);
+            requestMap.put("limit", limit);
+            requestMap.put("lower_bound", lowerBound);
+            requestMap.put("upper_bound", upperBound);
+            requestMap.put("json", json);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("requestString: " + requestString);
+            _log.debug("requestString: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("response: " + response);
+            _log.debug("response: " + response);
 
             if (response.response != null) {
-                getTableRowsResponse = om.readValue(response.response, GetTableRows.Response.class);
+                getTableRowsResponse = _objectMapper.readValue(response.response, TableRows.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return getTableRowsResponse;
     }
 
-    public TransactionBinArgs abiJsonToBin(String code, String action, Map args) {
+    public TransactionBinArgs abiJsonToBin(String code,
+                                           String action,
+                                           Map args) throws ChainException {
         TransactionBinArgs abiJsonToBinResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/abi_json_to_bin");
 
             Map<String, Object> requestMap = new HashMap<String, Object>();
-            requestMap.put("code", code) ;
-            requestMap.put("action", action) ;
-            requestMap.put("args", args) ;
+            requestMap.put("code", code);
+            requestMap.put("action", action);
+            requestMap.put("args", args);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("ABI JSON to Bin Request: " + requestString);
+            _log.debug("ABI JSON to Bin Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("ABI JSON to Bin Response: " + response);
+            _log.debug("ABI JSON to Bin Response: " + response);
 
             if (response.response != null) {
-                abiJsonToBinResponse = om.readValue(response.response, TransactionBinArgs.class);
+                abiJsonToBinResponse = _objectMapper.readValue(response.response, TransactionBinArgs.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return abiJsonToBinResponse;
     }
 
-    public TransactionJSONArgs abiBinToJson(String code, String action, String binArgs) {
+    public TransactionJSONArgs abiBinToJson(String code,
+                                            String action,
+                                            String binArgs) throws ChainException {
         TransactionJSONArgs abiBinToJsonResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/abi_bin_to_json");
 
             Map<String, Object> requestMap = new HashMap<String, Object>();
-            requestMap.put("code", code) ;
-            requestMap.put("action", action) ;
-            requestMap.put("binargs", binArgs) ;
+            requestMap.put("code", code);
+            requestMap.put("action", action);
+            requestMap.put("binargs", binArgs);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("ABI Bin to JSON Request: " + requestString);
+            _log.debug("ABI Bin to JSON Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("ABI Bin to JSON Response: " + response);
+            _log.debug("ABI Bin to JSON Response: " + response);
 
             if (response.response != null) {
-                abiBinToJsonResponse = om.readValue(response.response, TransactionJSONArgs.class);
+                abiBinToJsonResponse = _objectMapper.readValue(response.response, TransactionJSONArgs.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return abiBinToJsonResponse;
     }
 
-    public RequiredKeys getRequiredKeys(Transaction transaction, List<String> availableKeys) {
+    public RequiredKeys getRequiredKeys(Transaction transaction,
+                                        List<String> availableKeys) throws ChainException {
         RequiredKeys getTableRowsResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/get_required_keys");
 
             Map<String, Object> requestMap = new HashMap<String, Object>();
-            requestMap.put("transaction", transaction) ;
-            requestMap.put("available_keys", new ArrayList<String>(availableKeys)) ;
+            requestMap.put("transaction", transaction);
+            requestMap.put("available_keys", new ArrayList<String>(availableKeys));
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(requestMap);
+            String requestString = _objectMapper.writeValueAsString(requestMap);
 
-            System.out.println("Get Required Request: " + requestString);
+            _log.debug("Get Required Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("Get Required Response: " + response);
+            _log.debug("Get Required Response: " + response);
 
             if (response.response != null) {
-                getTableRowsResponse = om.readValue(response.response, RequiredKeys.class);
+                getTableRowsResponse = _objectMapper.readValue(response.response, RequiredKeys.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return getTableRowsResponse;
     }
 
-    public Transaction.Response pushTransaction(SignedTransaction transaction) {
+    public Transaction.Response pushTransaction(SignedTransaction transaction) throws ChainException {
         Transaction.Response transactionResponse = null;
 
         try {
             URL getBlockURL = new URL(chainURL, "/v1/chain/push_transaction");
 
-            EOSByteWriter writer = new EOSByteWriter(4096);
-            transaction.pack(writer);
-            String packedTrx = Hex.encodeHexString(writer.toBytes());
+            String packedTrx = packTransaction(transaction);
 
-            Map<String, Object> pushTrx = new LinkedHashMap<String,Object>();
+            Map<String, Object> pushTrx = new LinkedHashMap<String, Object>();
             pushTrx.put("signatures", transaction.signatures);
             pushTrx.put("compression", "none");
             pushTrx.put("packed_context_free_data", "");
             pushTrx.put("packed_trx", packedTrx);
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(pushTrx);
+            String requestString = _objectMapper.writeValueAsString(pushTrx);
 
-            System.out.println("Push TX Request: " + requestString);
+            _log.debug("Push TX Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("Push TX Response: " + response);
+            _log.debug("Push TX Response: " + response);
 
             if (response.response != null) {
-                transactionResponse = om.readValue(response.response, Transaction.Response.class);
+                transactionResponse = _objectMapper.readValue(response.response, Transaction.Response.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return transactionResponse;
     }
 
-    public List<Transaction.Response> pushTransactions(List<SignedTransaction> signedTransactions) {
+    public List<Transaction.Response> pushTransactions(List<SignedTransaction> signedTransactions) throws ChainException {
         List<Transaction.Response> transactionResponse = null;
 
         try {
@@ -387,10 +391,8 @@ public class Chain {
 
             URL getBlockURL = new URL(chainURL, "/v1/chain/push_transactions");
 
-            for ( SignedTransaction transaction : signedTransactions) {
-                EOSByteWriter writer = new EOSByteWriter(4096);
-                transaction.pack(writer);
-                String packedTrx = Hex.encodeHexString(writer.toBytes());
+            for (SignedTransaction transaction : signedTransactions) {
+                String packedTrx = packTransaction(transaction);
 
                 Map<String, Object> pushTrx = new LinkedHashMap<String, Object>();
                 pushTrx.put("signatures", transaction.signatures);
@@ -401,38 +403,38 @@ public class Chain {
                 pushTrxs.add(pushTrx);
             }
 
-            ObjectMapper om = new ObjectMapper();
-            String requestString = om.writeValueAsString(pushTrxs);
+            String requestString = _objectMapper.writeValueAsString(pushTrxs);
 
 
-            System.out.println("Push TX Request: " + requestString);
+            _log.debug("Push TXs Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            System.out.println("Push TX Response: " + response);
+            _log.debug("Push TXs Response: " + response);
 
             if (response.response != null) {
-                transactionResponse = om.readValue(response.response, List.class);
+                transactionResponse = _objectMapper.readValue(response.response, List.class);
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
-                System.out.println("Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
         }
 
         return transactionResponse;
     }
 
-    public Transaction createRawTransaction(String account, String name, Map args, List<String> scopes, List<Transaction.Authorization> authorizations, Date expirationDate) {
+    public Transaction createRawTransaction(String account,
+                                            String name,
+                                            Map args,
+                                            List<String> scopes,
+                                            List<Transaction.Authorization> authorizations,
+                                            Date expirationDate) throws ChainException {
 
         TimeZone tz = TimeZone.getTimeZone("UTC");
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -464,11 +466,11 @@ public class Chain {
         return transaction;
     }
 
-    
+
     // -------- Private Methods --------
 
-    public String packTransaction(SignedTransaction transaction) {
-        String packedTrx = null ;
+    public String packTransaction(SignedTransaction transaction) throws ChainException {
+        String packedTrx = null;
         try {
             EOSByteWriter writer = new EOSByteWriter(4096);
 
@@ -479,9 +481,9 @@ public class Chain {
             packedTrx = Hex.encodeHexString(bytes);
 
         } catch (ParseException e) {
-            e.printStackTrace();
+            throw new ChainException(e, null);
         }
-        return packedTrx ;
+        return packedTrx;
     }
 
 

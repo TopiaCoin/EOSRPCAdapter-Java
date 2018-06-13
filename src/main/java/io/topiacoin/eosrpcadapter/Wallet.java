@@ -1,14 +1,16 @@
 package io.topiacoin.eosrpcadapter;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.topiacoin.eosrpcadapter.exceptions.EOSException;
+import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -18,22 +20,28 @@ import java.util.List;
 
 public class Wallet {
 
+    private final Log _log = LogFactory.getLog(this.getClass());
+
     private final EOSRPCAdapter rpcAdapter;
-    private final URL walletURL ;
+    private final URL walletURL;
+    private final ObjectMapper _objectMapper;
 
     Wallet(URL walletURL, EOSRPCAdapter rpcAdapter) {
         this.walletURL = walletURL;
         this.rpcAdapter = rpcAdapter;
+
+        _objectMapper = new ObjectMapper();
+        _objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    public String createKey() {
+    public String createKey() throws WalletException {
 
         EOSKey eosKey = EOSKey.randomKey();
 
-        return eosKey.toWif() ;
+        return eosKey.toWif();
     }
 
-    public List<String> list() {
+    public List<String> list() throws WalletException {
         List<String> walletList = null;
 
         try {
@@ -41,27 +49,27 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
 
-            System.out.println("response: " + response);
+            _log.debug("List Wallets Response: " + response);
 
-            if (response.response != null ) {
-                ObjectMapper om = new ObjectMapper();
-                walletList = om.readValue(response.response, List.class);
+            if (response.response != null) {
+                walletList = _objectMapper.readValue(response.response, List.class);
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (JsonMappingException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return walletList;
     }
 
-    public boolean open(String name) {
-        boolean opened = false ;
+    public boolean open(String name) throws WalletException {
+        boolean opened = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/open");
@@ -70,18 +78,27 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, walletName);
 
-            System.out.println("response: " + response);
+            _log.debug("Open Wallet Response: " + response);
 
-            opened = response.response != null ;
+            if (response.response != null) {
+                opened = true;
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
+            }
 
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (IOException e) {
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return opened;
     }
 
-    public String create(String name) {
+    public String create(String name) throws WalletException {
         String password = null;
 
         try {
@@ -91,20 +108,27 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, walletName);
 
-            System.out.println("response: " + response);
+            _log.debug("Create Wallet Response: " + response);
 
-            if ( response.response != null ) {
+            if (response.response != null) {
                 password = response.response.replaceAll("\"", "");
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (IOException e) {
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return password;
     }
 
-    public boolean lock(String name) {
-        boolean locked = false ;
+    public boolean lock(String name) throws WalletException {
+        boolean locked = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/lock");
@@ -113,70 +137,94 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, walletName);
 
-            System.out.println("response: " + response);
+            _log.debug("Lock Wallet Response: " + response);
 
-            locked = response.response != null;
+            if (response.response != null) {
+                locked = true;
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
+            }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (IOException e) {
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return locked;
     }
 
-    public boolean unlock(String name, String password) {
-        boolean unlocked = false ;
+    public boolean unlock(String name,
+                          String password) throws WalletException {
+        boolean unlocked = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/unlock");
 
-            String request = "[\"" + name + "\",\"" + password + "\"]" ;
+            String request = "[\"" + name + "\",\"" + password + "\"]";
 
-            System.out.println("Unlock Request: " + request);
+            _log.debug("Unlock Request: " + request);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, request);
 
-            System.out.println("Unlock Response: " + response);
+            _log.debug("Unlock Response: " + response);
 
-            if ( response.response != null ) {
-                unlocked = true ;
-            }else {
+            if (response.response != null) {
+                unlocked = true;
+            } else {
 
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                ObjectMapper om = new ObjectMapper();
-                ErrorResponse errorResponse = om.readValue(errorMessage, ErrorResponse.class);
-                System.out.println ( "Error Response: " + errorResponse);
+                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8");
+                ErrorResponse errorResponse = _objectMapper.readValue(errorMessage, ErrorResponse.class);
+                _log.debug("Error Response: " + errorResponse);
 
                 // 3120007 - The wallet is already unlocked, so just ignore the error
-                unlocked = ( errorResponse.error.code == 3120007 ) ;
+                if (errorResponse.error.code == 3120007) {
+                    unlocked = true;
+                } else {
+                    throw new WalletException(errorResponse.message, errorResponse);
+                }
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return unlocked;
     }
 
-    public boolean lockAll() {
-        boolean locked = false ;
+    public boolean lockAll() throws WalletException {
+        boolean locked = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/lock_all");
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, "");
 
-            System.out.println("response: " + response);
+            _log.debug("Lock All Wallets Response: " + response);
 
-            locked = (response.response != null );
+            if (response.response != null) {
+                locked = true;
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
+            }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (IOException e) {
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return locked;
     }
 
-    public List<String> getPublicKeys() {
+    public List<String> getPublicKeys() throws WalletException {
         List<String> publicKeys = null;
 
         try {
@@ -184,125 +232,137 @@ public class Wallet {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.getRequest(getInfoURL);
 
-            System.out.println("Get Public Response: " + response);
+            _log.debug("Get Public Keys Response: " + response);
 
-            if ( response.response != null ) {
-                ObjectMapper om = new ObjectMapper();
-                publicKeys = om.readValue(response.response, List.class);
+            if (response.response != null) {
+                publicKeys = _objectMapper.readValue(response.response, List.class);
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return publicKeys;
     }
 
-    public Keys listKeys(String name, String password) {
+    public Keys listKeys(String name,
+                         String password) throws WalletException {
         Keys keys = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/list_keys");
 
-            String request = "[\"" + name + "\",\"" + password + "\"]" ;
+            String request = "[\"" + name + "\",\"" + password + "\"]";
 
-            System.out.println("List Keys Request: " + request);
+            _log.debug("List Keys Request: " + request);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, request);
 
-            System.out.println("List Keys Response: " + response);
+            _log.debug("List Keys Response: " + response);
 
-            if ( response.response != null ) {
-                ObjectMapper om = new ObjectMapper();
-                List<List<String>> listOfKeyPairs = om.readValue(response.response, List.class);
+            if (response.response != null) {
+                List<List<String>> listOfKeyPairs = _objectMapper.readValue(response.response, List.class);
                 keys = new Keys();
                 keys.keys = new ArrayList<Keys.KeyPair>();
-                for ( List<String> curKeyPair : listOfKeyPairs ) {
+                for (List<String> curKeyPair : listOfKeyPairs) {
                     Keys.KeyPair keyPair = new Keys.KeyPair(curKeyPair.get(0), curKeyPair.get(1));
                     keys.keys.add(keyPair);
                 }
             } else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                System.out.println ( "Error Message: " + errorMessage);
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return keys;
     }
 
-    public boolean importKey(String name, String key) {
-        boolean imported = false ;
+    public boolean importKey(String name,
+                             String key) throws WalletException {
+        boolean imported = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/import_key");
 
-            String request = "[\"" + name + "\",\"" + key + "\"]" ;
+            String request = "[\"" + name + "\",\"" + key + "\"]";
 
-            System.out.println("Import Request: " + request);
+            _log.debug("Import Key Request: " + request);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, request);
 
-            System.out.println("response: " + response);
+            _log.debug("Import Key Response: " + response);
 
-            if ( response.response != null ) {
-                imported = true ;
-            }else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                System.out.println ( "Error Message: " + errorMessage);
+            if (response.response != null) {
+                imported = true;
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return imported;
     }
 
-    public boolean setTimeout(int timeoutSecs) {
-        boolean timeoutSet = false ;
+    public boolean setTimeout(int timeoutSecs) throws WalletException {
+        boolean timeoutSet = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/set_timeout");
 
-            String request = "" + timeoutSecs ;
+            String request = "" + timeoutSecs;
 
-            System.out.println("Import Request: " + request);
+            _log.debug("Set Timeout Request: " + request);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, request);
 
-            System.out.println("response: " + response);
+            _log.debug("Set Timeout Response: " + response);
 
-            if ( response.response != null ) {
-                timeoutSet = true ;
-            }else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                System.out.println ( "Error Message: " + errorMessage);
+            if (response.response != null) {
+                timeoutSet = true;
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return timeoutSet;
     }
 
-    public SignedTransaction signTransaction (Transaction transaction, List<String> keys) {
+    public SignedTransaction signTransaction(Transaction transaction,
+                                             List<String> keys) throws WalletException {
         return signTransaction(transaction, keys, "");
     }
 
-    public SignedTransaction signTransaction (Transaction transaction, List<String> keys, String chainID) {
-        SignedTransaction signedTransaction = null ;
+    public SignedTransaction signTransaction(Transaction transaction,
+                                             List<String> keys,
+                                             String chainID) throws WalletException {
+        SignedTransaction signedTransaction = null;
 
         try {
-            ObjectMapper om = new ObjectMapper();
-            om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
             URL getInfoURL = new URL(walletURL, "/v1/wallet/sign_transaction");
 
@@ -311,26 +371,28 @@ public class Wallet {
             request.add(keys);
             request.add(chainID);
 
-            String requestString = om.writeValueAsString(request);
+            String requestString = _objectMapper.writeValueAsString(request);
 
-            System.out.println("Sign Request: " + requestString);
+            _log.debug("Sign Request: " + requestString);
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getInfoURL, requestString);
 
-            System.out.println("Sign Response: " + response);
+            _log.debug("Sign Response: " + response);
 
-            if ( response.response != null ) {
-                signedTransaction = om.readValue(response.response, SignedTransaction.class);
+            if (response.response != null) {
+                signedTransaction = _objectMapper.readValue(response.response, SignedTransaction.class);
                 List<String> signatures = signedTransaction.signatures;
                 signedTransaction = new SignedTransaction(transaction, signatures);
-            }else {
-                String errorMessage = IOUtils.toString(response.error.getEntity().getContent(), "UTF-8") ;
-                System.out.println ( "Error Message: " + errorMessage);
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new WalletException(errorResponse.message, errorResponse);
             }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new WalletException(e, null);
+        } catch (EOSException e) {
+            throw new WalletException(e, null);
         }
 
         return signedTransaction;

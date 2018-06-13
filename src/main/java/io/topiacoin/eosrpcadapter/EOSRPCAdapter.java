@@ -1,5 +1,6 @@
 package io.topiacoin.eosrpcadapter;
 
+import io.topiacoin.eosrpcadapter.exceptions.EOSException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.logging.Log;
@@ -50,11 +51,22 @@ public class EOSRPCAdapter {
     private Chain _chain;
     private AccountHistory _accountHistory;
 
+    /**
+     * Creates a new EOS RPC Adapter instance that will connect to the specified node and wallet URLs.
+     *
+     * @param nodeURL The URL of the EOS node to communicate with
+     * @param walletURL The URL of the EOS wallet to communicate with
+     */
     public EOSRPCAdapter(URL nodeURL, URL walletURL) {
         this.eosNodeURL = nodeURL;
         this.eosWalletURL = walletURL;
     }
 
+    /**
+     * Returns an instance of the Wallet class that can be used to interact with the wallet.
+     *
+     * @return An instance of the Wallet class
+     */
     public synchronized Wallet wallet() {
         if ( _wallet == null ){
             _wallet = new Wallet(eosWalletURL, this) ;
@@ -62,6 +74,11 @@ public class EOSRPCAdapter {
         return _wallet;
     }
 
+    /**
+     * Returns an instance of the Chain class that can be used to interact with the chain.
+     *
+     * @return An instance of the Chain class
+     */
     public synchronized Chain chain() {
         if ( _chain == null ) {
             _chain = new Chain(eosNodeURL, this);
@@ -69,6 +86,11 @@ public class EOSRPCAdapter {
         return _chain;
     }
 
+    /**
+     * Returns an instance of the Account History class that can be used to retrieve history for an account.
+     *
+     * @return An instance of the Account History class.
+     */
     public synchronized AccountHistory accountHistory() {
         if ( _accountHistory == null ) {
             _accountHistory = new AccountHistory(eosNodeURL, this);
@@ -79,7 +101,7 @@ public class EOSRPCAdapter {
     // -------- Package Scoped methods for raw communication with the RPC API --------
 
     // Send a Get Request to the Server and Return the response
-    EOSRPCResponse getRequest (URL url ) {
+    EOSRPCResponse getRequest (URL url ) throws EOSException {
         try {
             HttpClient client = HttpClients.createDefault();
 
@@ -90,23 +112,21 @@ public class EOSRPCAdapter {
 
             return validateResponse(response);
         } catch ( URISyntaxException e) {
-            _log.warn ( "Exception Executing GET Request", e) ;
+            throw new EOSException("Communications Exception", e, null);
         } catch (ClientProtocolException e) {
-            _log.warn ( "Exception Executing GET Request", e) ;
+            throw new EOSException("Communications Exception", e, null);
         } catch (IOException e) {
-            _log.warn ( "Exception Executing GET Request", e) ;
+            throw new EOSException("Communications Exception", e, null);
         }
-
-        return null;
     }
 
     // Send a Post Request to the Server and Return the response
-    EOSRPCResponse postRequest (URL url, String rawData) {
+    EOSRPCResponse postRequest (URL url, String rawData) throws EOSException {
         return postRequest(url, rawData, false);
     }
 
     // Send a Post Request to the Server, quoting the rawData, and Return the response
-    EOSRPCResponse postRequest ( URL url, String rawData, boolean escapeQuotes) {
+    EOSRPCResponse postRequest ( URL url, String rawData, boolean escapeQuotes) throws EOSException {
         try {
             String requestData = rawData;
             if ( escapeQuotes ) {
@@ -123,17 +143,15 @@ public class EOSRPCAdapter {
 
             return validateResponse(response);
         } catch ( URISyntaxException e) {
-            _log.warn ( "Exception Executing GET Request", e) ;
+            throw new EOSException("Communications Exception", e, null);
         } catch (ClientProtocolException e) {
-            _log.warn ( "Exception Executing GET Request", e) ;
+            throw new EOSException("Communications Exception", e, null);
         } catch (IOException e) {
-            _log.warn ( "Exception Executing GET Request", e) ;
+            throw new EOSException("Communications Exception", e, null);
         }
-
-        return null;
     }
 
-    EOSRPCResponse validateResponse(HttpResponse response) throws IOException {
+    EOSRPCResponse validateResponse(HttpResponse response) throws IOException, EOSException {
         EOSRPCResponse result;
         if ( response.getStatusLine().getStatusCode() >= 200 && response.getStatusLine().getStatusCode() < 300) {
             result = new EOSRPCResponse(IOUtils.toString(response.getEntity().getContent(), "UTF-8"));

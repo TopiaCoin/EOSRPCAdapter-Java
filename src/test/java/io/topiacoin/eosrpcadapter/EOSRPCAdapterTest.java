@@ -4,10 +4,10 @@ import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.Code;
-import io.topiacoin.eosrpcadapter.messages.GetTableRows;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
+import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
@@ -107,7 +107,7 @@ public class EOSRPCAdapterTest {
         EOSRPCAdapter adapter = getEosRPCAdapter();
         Chain chain = adapter.chain();
 
-        GetTableRows.Response response = chain.getTableRows("sampledb", "sampledb", "workspace", true);
+        TableRows response = chain.getTableRows("sampledb", "sampledb", "workspace", -1, true);
 
         assertNotNull(response);
     }
