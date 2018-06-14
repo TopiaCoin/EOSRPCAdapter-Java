@@ -449,19 +449,12 @@ public class Chain {
         TransactionBinArgs binArgsResponse = abiJsonToBin(account, name, args);
         String binArgs = binArgsResponse.binargs;
 
-        Transaction.Action txAction = new Transaction.Action();
-        txAction.account = account;
-        txAction.name = name;
-        txAction.data = binArgs;
-        txAction.authorization = authorizations;
+        Transaction.Action txAction = new Transaction.Action(account, name, authorizations, binArgs);
 
-        Transaction transaction = new Transaction();
-        transaction.ref_block_num = last_irreversible_block_num;
-        transaction.ref_block_prefix = last_irreversible_block_prefix;
-        transaction.actions = new ArrayList<Transaction.Action>();
-        transaction.actions.add(txAction);
-        transaction.signatures = new ArrayList<String>();
-        transaction.expiration = expDateString;
+        ArrayList<Transaction.Action> actions = new ArrayList<Transaction.Action>();
+        actions.add(txAction);
+
+        Transaction transaction = new Transaction(expDateString, last_irreversible_block_num, last_irreversible_block_prefix,0, 0, 0, null, actions, null, null, null);
 
         return transaction;
     }

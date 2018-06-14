@@ -27,6 +27,33 @@ public class Transaction {
     public List<String> signatures = new ArrayList<String>();
     public List<String> context_free_data = new ArrayList<String>();
 
+    protected Transaction() {
+    }
+
+    public Transaction(String expiration,
+                       long ref_block_num,
+                       long ref_block_prefix,
+                       int max_net_usage_words,
+                       int max_cpu_usage_ms,
+                       int delay_sec,
+                       List<String> context_free_actions,
+                       List<Action> actions,
+                       List<String> transaction_extensions,
+                       List<String> signatures,
+                       List<String> context_free_data) {
+        this.expiration = expiration;
+        this.ref_block_num = ref_block_num;
+        this.ref_block_prefix = ref_block_prefix;
+        this.max_net_usage_words = max_net_usage_words;
+        this.max_cpu_usage_ms = max_cpu_usage_ms;
+        this.delay_sec = delay_sec;
+        this.context_free_actions = (context_free_actions != null ? context_free_actions : new ArrayList<String>());
+        this.actions = (actions != null ? actions : new ArrayList<Action>());
+        this.transaction_extensions = (transaction_extensions != null ? transaction_extensions : new ArrayList<String>());
+        this.signatures = (signatures != null ? signatures : new ArrayList<String>());
+        this.context_free_data = (context_free_data != null ? context_free_data : new ArrayList<String>());
+    }
+
     public void pack(EOSByteWriter writer) throws ParseException {
         // Pack the Transaction Header
         TimeZone tz = TimeZone.getTimeZone("UTC");
@@ -79,6 +106,13 @@ public class Transaction {
         public List<Authorization> authorization;
         public String data;
 
+        public Action(String account, String name, List<Authorization> authorization, String data) {
+            this.account = account;
+            this.name = name;
+            this.authorization = authorization;
+            this.data = data;
+        }
+
         @Override
         public String toString() {
             return "Action{" +
@@ -113,6 +147,11 @@ public class Transaction {
     public static class Authorization {
         public String actor;
         public String permission;
+
+        public Authorization(String actor, String permission) {
+            this.actor = actor;
+            this.permission = permission;
+        }
 
         public void pack(EOSByteWriter writer) {
             // Base32 decode the account and permission to long's.

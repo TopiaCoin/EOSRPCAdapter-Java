@@ -156,9 +156,7 @@ public class EOSRPCAdapterTest {
 
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
-        Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.actor="inita";
-        authorization.permission="active";
+        Transaction.Authorization authorization = new Transaction.Authorization("inita", "active");
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
@@ -319,9 +317,7 @@ public class EOSRPCAdapterTest {
 
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
-        Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.actor="inita";
-        authorization.permission="active";
+        Transaction.Authorization authorization = new Transaction.Authorization("inita", "active");
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
@@ -354,9 +350,7 @@ public class EOSRPCAdapterTest {
 
         Transaction transaction = null;
         List<String> scope = Arrays.asList("inita");
-        Transaction.Authorization authorization = new Transaction.Authorization();
-        authorization.actor="inita";
-        authorization.permission="active";
+        Transaction.Authorization authorization = new Transaction.Authorization("inita", "active");
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
@@ -394,9 +388,7 @@ public class EOSRPCAdapterTest {
             args.put("data", "bar");
 
             List<String> scope = Arrays.asList("inita");
-            Transaction.Authorization authorization = new Transaction.Authorization();
-            authorization.actor = "inita";
-            authorization.permission = "active";
+            Transaction.Authorization authorization = new Transaction.Authorization("inita", "active");
             List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
             transaction1 = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
         }
@@ -409,9 +401,7 @@ public class EOSRPCAdapterTest {
             args.put("data", "buzz");
 
             List<String> scope = Arrays.asList("inita");
-            Transaction.Authorization authorization = new Transaction.Authorization();
-            authorization.actor = "inita";
-            authorization.permission = "active";
+            Transaction.Authorization authorization = new Transaction.Authorization("inita", "active");
             List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
             transaction2 = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
         }
