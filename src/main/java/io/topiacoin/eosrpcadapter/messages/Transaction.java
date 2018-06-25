@@ -106,6 +106,9 @@ public class Transaction {
         public List<Authorization> authorization;
         public String data;
 
+        public Action() {
+        }
+
         public Action(String account, String name, List<Authorization> authorization, String data) {
             this.account = account;
             this.name = name;
