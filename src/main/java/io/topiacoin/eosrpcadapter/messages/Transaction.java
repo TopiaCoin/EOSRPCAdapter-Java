@@ -151,6 +151,9 @@ public class Transaction {
         public String actor;
         public String permission;
 
+        public Authorization() {
+        }
+
         public Authorization(String actor, String permission) {
             this.actor = actor;
             this.permission = permission;
