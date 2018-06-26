@@ -54,6 +54,16 @@ public class BlockInfo {
         public String status;
         public long cpu_usage_us;
         public long net_usage_words;
-        public List<Transaction> trx;
+        public TransactionInfo trx;
+    }
+
+    public static class TransactionInfo {
+        public String id;
+        public List<String> signatures;
+        public String compression;
+        public String packed_context_free_data;
+        public List<String> context_free_data;
+        public String packed_trx;
+        public Transaction transaction;
     }
 }

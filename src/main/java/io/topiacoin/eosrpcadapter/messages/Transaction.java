@@ -1,5 +1,7 @@
 package io.topiacoin.eosrpcadapter.messages;
 
+import com.fasterxml.jackson.annotation.JsonRawValue;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.topiacoin.eosrpcadapter.util.Base32;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
 import org.bouncycastle.util.encoders.Hex;
@@ -104,7 +106,7 @@ public class Transaction {
         public String account;
         public String name;
         public List<Authorization> authorization;
-        public String data;
+        public Object data;
 
         public Action() {
         }
@@ -140,7 +142,7 @@ public class Transaction {
                 auth.pack(writer);
             }
 
-            byte[] decodedData = Hex.decode(data);
+            byte[] decodedData = Hex.decode(data.toString());
             writer.putVariableUInt(decodedData.length);
             writer.putBytes(decodedData);
         }

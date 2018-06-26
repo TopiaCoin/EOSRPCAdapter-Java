@@ -183,12 +183,23 @@ public class Chain {
                                   String table,
                                   long limit,
                                   boolean json) throws ChainException {
-        return getTableRows(contract, scope, table, "0", "-1", limit, json);
+        return getTableRows(contract, scope, table, null, "0", "-1", limit, json);
     }
 
     public TableRows getTableRows(String contract,
                                   String scope,
                                   String table,
+                                  String lowerBound,
+                                  String upperBound,
+                                  long limit,
+                                  boolean json) throws ChainException {
+        return getTableRows(contract, scope, table, null, lowerBound, upperBound, limit, json);
+    }
+
+    public TableRows getTableRows(String contract,
+                                  String scope,
+                                  String table,
+                                  String key,
                                   String lowerBound,
                                   String upperBound,
                                   long limit,
@@ -203,6 +214,9 @@ public class Chain {
             requestMap.put("scope", scope);
             requestMap.put("table", table);
             requestMap.put("limit", limit);
+            if ( key != null ) {
+                requestMap.put("table_key", key);
+            }
             requestMap.put("lower_bound", lowerBound);
             requestMap.put("upper_bound", upperBound);
             requestMap.put("json", json);
