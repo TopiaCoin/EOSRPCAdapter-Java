@@ -93,7 +93,7 @@ public class EOSRPCAdapter {
      */
     public synchronized AccountHistory accountHistory() {
         if ( _accountHistory == null ) {
-            _accountHistory = new AccountHistory(eosNodeURL, this);
+            _accountHistory = new RPCAccountHistory(eosNodeURL, this);
         }
         return _accountHistory;
     }

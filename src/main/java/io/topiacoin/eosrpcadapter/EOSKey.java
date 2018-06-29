@@ -1,5 +1,6 @@
 package io.topiacoin.eosrpcadapter;
 
+import io.topiacoin.eosrpcadapter.util.Base58;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;

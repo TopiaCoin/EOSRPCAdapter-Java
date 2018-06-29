@@ -1,4 +1,4 @@
-package io.topiacoin.eosrpcadapter;
+package io.topiacoin.eosrpcadapter.util;
 
 import java.math.BigInteger;
 import java.util.Arrays;
