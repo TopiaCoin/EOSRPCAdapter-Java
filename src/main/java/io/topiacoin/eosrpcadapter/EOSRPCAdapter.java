@@ -81,7 +81,7 @@ public class EOSRPCAdapter {
      */
     public synchronized Chain chain() {
         if ( _chain == null ) {
-            _chain = new Chain(eosNodeURL, this);
+            _chain = new RPCChain(eosNodeURL, this);
         }
         return _chain;
     }
