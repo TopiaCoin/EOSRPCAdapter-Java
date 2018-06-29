@@ -69,7 +69,7 @@ public class EOSRPCAdapter {
      */
     public synchronized Wallet wallet() {
         if ( _wallet == null ){
-            _wallet = new Wallet(eosWalletURL, this) ;
+            _wallet = new RPCWallet(eosWalletURL, this) ;
         }
         return _wallet;
     }
