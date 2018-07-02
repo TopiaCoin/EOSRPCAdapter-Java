@@ -4,15 +4,27 @@ import io.topiacoin.eosrpcadapter.util.Base58;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
+import org.bouncycastle.jce.spec.ECParameterSpec;
+import org.bouncycastle.jce.spec.ECPublicKeySpec;
+import org.bouncycastle.math.ec.ECPoint;
+//import org.bouncycastle.math.ec.ECPoint;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyFactory;
+import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECPrivateKeySpec;
+//import java.security.spec.ECPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 
@@ -135,6 +147,47 @@ public class EOSKey {
         }
 
         return wif58;
+    }
+
+    public String getPublicKeyString() {
+        String keyString = null;
+
+        PublicKey publicKey = getPublicKey();
+
+        // TODO - Encode the Public Key
+        
+
+        return keyString;
+    }
+
+    public PublicKey getPublicKey() {
+        PublicKey publicKey = null ;
+
+        try {
+            // Generate public key from private key
+            KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
+            ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
+
+            BigInteger d = new BigInteger(privateKey.getEncoded());
+            ECPoint Q = ecSpec.getG().multiply(d);
+            byte[] publicDerBytes = Q.getEncoded();
+
+            ECPoint point = ecSpec.getCurve().decodePoint(publicDerBytes);
+            ECPublicKeySpec pubSpec = new ECPublicKeySpec(point, ecSpec);
+            publicKey = keyFactory.generatePublic(pubSpec);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (NoSuchProviderException e) {
+            e.printStackTrace();
+        } catch (InvalidKeySpecException e) {
+            e.printStackTrace();
+        }
+
+        return publicKey;
+    }
+
+    protected PrivateKey getPrivateKey() {
+        return privateKey;
     }
 
     @Override

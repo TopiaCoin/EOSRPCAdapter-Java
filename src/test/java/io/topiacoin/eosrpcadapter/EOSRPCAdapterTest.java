@@ -1,16 +1,9 @@
 package io.topiacoin.eosrpcadapter;
 
-import io.topiacoin.eosrpcadapter.messages.AccountInfo;
-import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
-import io.topiacoin.eosrpcadapter.messages.Code;
-import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
-import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
-import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
-import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 import org.junit.Test;
 
 import java.net.MalformedURLException;
@@ -82,7 +75,7 @@ public class EOSRPCAdapterTest {
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
-        List<String> publicKeys = wallet.getPublicKeys();
+        List<String> publicKeys = wallet.getPublicKeys(null);
 
         RequiredKeys response = chain.getRequiredKeys(transaction, publicKeys);
 
@@ -115,7 +108,7 @@ public class EOSRPCAdapterTest {
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
-        List<String> publicKeys = wallet.getPublicKeys();
+        List<String> publicKeys = wallet.getPublicKeys(null);
 
         SignedTransaction signedTransaction = wallet.signTransaction(transaction, publicKeys) ;
 
@@ -148,7 +141,7 @@ public class EOSRPCAdapterTest {
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
 
-        List<String> publicKeys = wallet.getPublicKeys();
+        List<String> publicKeys = wallet.getPublicKeys(null);
 
         RequiredKeys reqKeyResponse = chain.getRequiredKeys(transaction, publicKeys);
 
@@ -201,7 +194,7 @@ public class EOSRPCAdapterTest {
         }
 
 
-        List<String> publicKeys = wallet.getPublicKeys();
+        List<String> publicKeys = wallet.getPublicKeys(null);
 
         RequiredKeys reqKey1Response = chain.getRequiredKeys(transaction1, publicKeys);
         SignedTransaction signedTransaction1 = wallet.signTransaction(transaction1, reqKey1Response.required_keys, chainInfo.chain_id) ;

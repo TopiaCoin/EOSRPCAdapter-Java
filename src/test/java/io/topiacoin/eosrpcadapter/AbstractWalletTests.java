@@ -95,7 +95,7 @@ public abstract class AbstractWalletTests {
         assertTrue(unlockResponse);
 
         // List Public Keys in Wallet
-        List<String> publicKeys = wallet.getPublicKeys();
+        List<String> publicKeys = wallet.getPublicKeys(null);
         assertNotNull(publicKeys);
         assertEquals(1, publicKeys.size());
 
@@ -114,7 +114,7 @@ public abstract class AbstractWalletTests {
         assertTrue(importResponse);
 
         // List Public Keys in Wallet
-        publicKeys = wallet.getPublicKeys();
+        publicKeys = wallet.getPublicKeys(null);
         assertNotNull(publicKeys);
         assertEquals(2, publicKeys.size());
 
@@ -129,7 +129,7 @@ public abstract class AbstractWalletTests {
     public void testWalletSetTimeout() throws Exception {
         Wallet wallet = getWallet();
 
-        boolean response = wallet.setTimeout(3600);
+        boolean response = wallet.setTimeout(null, 3600);
 
         assertTrue(response);
     }

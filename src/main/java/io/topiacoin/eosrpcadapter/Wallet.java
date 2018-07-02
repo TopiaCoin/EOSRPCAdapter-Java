@@ -24,7 +24,7 @@ public interface Wallet {
 
     boolean lockAll() throws WalletException;
 
-    List<String> getPublicKeys() throws WalletException;
+    List<String> getPublicKeys(String name) throws WalletException;
 
     Keys listKeys(String name,
                   String password) throws WalletException;
@@ -32,7 +32,7 @@ public interface Wallet {
     boolean importKey(String name,
                       String key) throws WalletException;
 
-    boolean setTimeout(int timeoutSecs) throws WalletException;
+    boolean setTimeout(String name, int timeoutSecs) throws WalletException;
 
     SignedTransaction signTransaction(Transaction transaction,
                                       List<String> keys) throws WalletException;

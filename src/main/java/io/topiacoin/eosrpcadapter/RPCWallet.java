@@ -232,7 +232,7 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public List<String> getPublicKeys() throws WalletException {
+    public List<String> getPublicKeys(String name) throws WalletException {
         List<String> publicKeys = null;
 
         try {
@@ -332,7 +332,7 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean setTimeout(int timeoutSecs) throws WalletException {
+    public boolean setTimeout(String name, int timeoutSecs) throws WalletException {
         boolean timeoutSet = false;
 
         try {
