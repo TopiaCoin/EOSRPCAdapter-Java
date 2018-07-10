@@ -219,7 +219,7 @@ public class JKSWallet implements Wallet {
             throw new WalletException("Invalid Key Specified", null) ;
         }
 
-        String alias = eosKey.putPublicKey() ;
+        String alias = eosKey.getPublicKeyString() ;
         walletData.importKey(null, eosKey.getPrivateKey());
         // TODO - Implement this method
 

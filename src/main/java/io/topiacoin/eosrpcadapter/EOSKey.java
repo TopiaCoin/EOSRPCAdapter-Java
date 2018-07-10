@@ -1,6 +1,10 @@
 package io.topiacoin.eosrpcadapter;
 
 import io.topiacoin.eosrpcadapter.util.Base58;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
+import org.bouncycastle.jce.ECKeyUtil;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
@@ -20,6 +24,7 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.interfaces.ECKey;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
@@ -29,6 +34,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 
 public class EOSKey {
+    public static final String ECC_CURVE_NAME = "secp256k1";
     private ECPrivateKey privateKey;
 
     public static EOSKey randomKey() {
@@ -47,18 +53,20 @@ public class EOSKey {
             e.printStackTrace();
         } catch (InvalidKeySpecException e) {
             e.printStackTrace();
+        } catch (NoSuchProviderException e) {
+            e.printStackTrace();
         }
 
         return newKey;
     }
 
-    private static ECPrivateKey getEcPrivateKey(byte[] keyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        BigInteger s = new BigInteger(keyBytes);
+    private static ECPrivateKey getEcPrivateKey(byte[] keyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+        BigInteger s = new BigInteger(1, keyBytes);
 
-        ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec("secp256k1");
-        ECNamedCurveSpec params = new ECNamedCurveSpec("secp256k1", ecCurve.getCurve(), ecCurve.getG(), ecCurve.getN(), ecCurve.getH());
+        ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
+        ECNamedCurveSpec params = new ECNamedCurveSpec(ECC_CURVE_NAME, ecCurve.getCurve(), ecCurve.getG(), ecCurve.getN(), ecCurve.getH());
         ECPrivateKeySpec keySpec = new ECPrivateKeySpec(s, params);
-        KeyFactory kf = KeyFactory.getInstance("EC");
+        KeyFactory kf = KeyFactory.getInstance("ECDSA", "BC");
         return (ECPrivateKey) kf.generatePrivate(keySpec);
     }
 
@@ -105,6 +113,8 @@ public class EOSKey {
             e.printStackTrace();
         } catch (InvalidKeySpecException e) {
             e.printStackTrace();
+        } catch (NoSuchProviderException e) {
+            e.printStackTrace();
         }
 
         return eosKey;
@@ -115,6 +125,9 @@ public class EOSKey {
         try {
             byte[] privateBytes = privateKey.getS().toByteArray();
 
+            if ( privateBytes.length == 33 && privateBytes[0] == 0x00 ) {
+                privateBytes= Arrays.copyOfRange(privateBytes, 1, privateBytes.length);
+            }
 //            System.out.println("private Bytes: " + Arrays.toString(Arrays.copyOfRange(privateBytes, 0, 16)));
 
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
@@ -150,14 +163,61 @@ public class EOSKey {
     }
 
     public String getPublicKeyString() {
-        String keyString = null;
+        String wif58 = null;
+        try {
+            java.security.spec.ECPoint ecPoint = ((ECPublicKey) getPublicKey()).getW();
 
-        PublicKey publicKey = getPublicKey();
+            ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
 
-        // TODO - Encode the Public Key
-        
+            byte[] encoded = getPublicKey().getEncoded();
+//            System.out.println("Encoded Bytes : " + Hex.encodeHexString(encoded));
 
-        return keyString;
+//            ECPoint ecPoint1 = ecSpec.getCurve().decodePoint(encoded);
+
+            byte[] x = ecPoint.getAffineX().toByteArray();
+            byte[] y = ecPoint.getAffineY().toByteArray();
+            byte[] publicBytes = new byte[x.length+1];
+            int lowestSetBit = ecPoint.getAffineY().getLowestSetBit();
+            publicBytes[0] = (byte)(lowestSetBit != 0 ? 0x02 : 0x03); // If bit 0 is not set, number is even.
+            System.arraycopy(x, 0, publicBytes, 1, x.length);
+
+//            System.out.println("X Bytes      : " + Hex.encodeHexString(x));
+//            System.out.println("Y Bytes      : " + Hex.encodeHexString(y));
+//            System.out.println("private Bytes: " + Hex.encodeHexString(publicBytes));
+
+//            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            MessageDigest sha256 = MessageDigest.getInstance("RIPEMD160");
+
+            sha256.update(publicBytes);
+//            sha256.update((byte) 0x01);
+
+            byte[] checksum = sha256.digest();
+
+//            sha256.reset();
+//            sha256.update(checksum);
+
+//            checksum = sha256.digest();
+
+//            System.out.println ( "Checksum: " + Arrays.toString(checksum)) ;
+
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+//            buffer.put((byte) 0x80);
+            buffer.put(publicBytes);
+            buffer.put(checksum, 0, 4);
+            buffer.flip();
+
+            byte[] wifBytes = new byte[buffer.remaining()];
+            buffer.get(wifBytes);
+
+//            wifBytes = getPublicKey().getEncoded();
+
+            wif58 = Base58.encode(wifBytes);
+
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+
+        return "EOS" + wif58;
     }
 
     public PublicKey getPublicKey() {
@@ -166,14 +226,11 @@ public class EOSKey {
         try {
             // Generate public key from private key
             KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
-            ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec("secp256r1");
+            ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
 
-            BigInteger d = new BigInteger(privateKey.getEncoded());
-            ECPoint Q = ecSpec.getG().multiply(d);
-            byte[] publicDerBytes = Q.getEncoded();
-
-            ECPoint point = ecSpec.getCurve().decodePoint(publicDerBytes);
-            ECPublicKeySpec pubSpec = new ECPublicKeySpec(point, ecSpec);
+            ECPrivateKeySpec privateKeySpec = keyFactory.getKeySpec(privateKey, ECPrivateKeySpec.class);
+            ECPoint Q = ecSpec.getG().multiply(privateKeySpec.getS());
+            ECPublicKeySpec pubSpec = new ECPublicKeySpec(Q, ecSpec);
             publicKey = keyFactory.generatePublic(pubSpec);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
