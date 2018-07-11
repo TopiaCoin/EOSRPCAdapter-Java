@@ -57,6 +57,19 @@ public class EOSKey {
         return newKey;
     }
 
+    public static EOSKey fromPrivateKey(PrivateKey privateKey) throws IllegalArgumentException {
+        EOSKey newKey = null ;
+
+        if ( privateKey instanceof ECPrivateKey) {
+            newKey = new EOSKey();
+            newKey.privateKey = (ECPrivateKey) privateKey;
+        } else {
+            throw new IllegalArgumentException("Private Key must be of type ECPrivateKey");
+        }
+
+        return newKey;
+    }
+
     /**
      * Constructs an EOSKey object from a WIF encoded private key string.
      *

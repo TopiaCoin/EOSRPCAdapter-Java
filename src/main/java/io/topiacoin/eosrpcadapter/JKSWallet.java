@@ -220,7 +220,7 @@ public class JKSWallet implements Wallet {
         }
 
         String alias = eosKey.getPublicKeyString() ;
-        walletData.importKey(null, eosKey.getPrivateKey());
+        walletData.importKey(alias, eosKey.getPrivateKey());
         // TODO - Implement this method
 
         return false;

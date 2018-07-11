@@ -37,7 +37,7 @@ public class ECSample {
 //        EOSKey key = EOSKey.randomKey();
 //        privateKey = key.toWif() ;
 //
-//        PublicKey eosPubKey = key.getPublicKey() ;
+//        PublicKey eosPubKey = key.getPublicKeyFromPublicString() ;
 //        System.out.println ( "Eos Pub Key : " + eosPubKey);
 
         byte[] publicBytes = Base58.decode(publicKey);
