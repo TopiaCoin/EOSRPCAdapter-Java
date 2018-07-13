@@ -3,6 +3,8 @@ package io.topiacoin.eosrpcadapter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.util.Base58;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.http.util.TextUtils;
+import org.bouncycastle.asn1.x9.X9IntegerConverter;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.ECPointUtil;
@@ -13,6 +15,7 @@ import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
+import org.bouncycastle.math.ec.ECAlgorithms;
 import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 
@@ -121,25 +124,38 @@ public class EOSWalletSample {
         System.out.println ( "Private Keys: " + privateKeys);
 
         // Remove Key from the Wallet
-        wallet.removeKey(newPubKey) ;
+        wallet.removeKey(publicKey) ;
 
         System.out.println ( "Removed   : " + wallet ) ;
 
         // TODO - Sign with the Wallet
-        byte[] digest = "foobarbazfizzbuz".getBytes() ;
-        String signature = wallet.signDigest(digest, publicKey) ;
+        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+        byte[] digest = sha256.digest("foobarbazfizzbuz".getBytes()) ;
+        String signature = wallet.signDigest(digest, newPubKey) ;
 
         System.out.println("Signature : " + signature);
 
         // TODO - Verify Signature with the Wallet
-        boolean verified = wallet.verifySignature(digest, signature, publicKey);
+        boolean verified = wallet.verifySignature(digest, signature, newPubKey);
 
         System.out.println ("Verified : " + verified);
 
         String recoveredKey = EOSKeysUtil.recoverPublicKey(signature, digest);
+        String recoveredKey2 = EOSKeysUtil.recoverPublicKey2(signature, digest);
 
-        System.out.println("Expected Key : " + publicKey);
-        System.out.println("Recovered Key : " + recoveredKey);
+        System.out.println("Expected Key   : " + newPubKey);
+        System.out.println("Recovered Key  : " + recoveredKey);
+        System.out.println("Recovered Key2 : " + recoveredKey2);
+
+
+        byte[] data = Hex.decodeHex("c321495bd814694e29be0000000001000000000093dd7400000000a86c52d501000000000093dd7400000000a8ed323228000000000093dd74eecdab8967452301174120446966666572656e74204465736372697074696f6e00".toCharArray()) ;
+        byte[] digest2 = sha256.digest(data);
+
+        String sig = "K43yrij1SVDUPxLszJJWcV873v7VjFj5Ekt1uJnGW1e7gDgrvgNzy65wEQvTBBFQJuMMYjWcnrgTY7Cs9QHPYkG2atTJmv" ;
+        String pubKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" ;
+
+        String recoveredKey3 = EOSKeysUtil.recoverPublicKey(sig, digest2) ;
+        System.out.println ( "Recovered Key3 : " + recoveredKey3);
     }
 
     private static class Wallet {
@@ -295,6 +311,9 @@ public class EOSWalletSample {
             ECPrivateKey privateKey = EOSKeysUtil.getPrivateKeyFromPrivateString(privateKeyWif);
             ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif);
 
+            System.out.println ( "   Actual Q.x : " + Hex.encodeHexString(publicKey.getW().getAffineX().toByteArray() )) ;
+            System.out.println ( "   Actual Q.y : " + Hex.encodeHexString(publicKey.getW().getAffineY().toByteArray()) ) ;
+
             Signature signature1 = Signature.getInstance("ECDSA");
             signature1.initSign(privateKey);
             signature1.update(digest);
@@ -305,13 +324,26 @@ public class EOSWalletSample {
             while ( recID < 4 ) {
                 signature = EOSKeysUtil.asn1SigToWif(sigBytes, publicKey, recID);
                 String recoverPublicKey = EOSKeysUtil.recoverPublicKey(signature, digest);
-                System.out.println ( "recID : " + signature + " -> " + recoverPublicKey) ;
+                String recoverPublicKey2 = EOSKeysUtil.recoverPublicKey2(signature, digest);
+
+                boolean verified = false ;
+                boolean verified2 = false;
+                if ( !TextUtils.isEmpty(recoverPublicKey ))
+                    verified = verifySignature(digest, signature, recoverPublicKey);
+                if ( !TextUtils.isEmpty(recoverPublicKey2 ))
+                    verified2 = verifySignature(digest, signature, recoverPublicKey2);
+
+                System.out.println ( "recID : " + signature + " -> " + recoverPublicKey + " -> " + verified) ;
+                System.out.println ( "      : " + signature + " -> " + recoverPublicKey2 + " -> " + verified2) ;
                 if ( recoverPublicKey.equals(publicKeyWif))
                 {
                     break;
                 }
                 recID++;
             }
+
+            boolean verified = verifySignature(digest, signature, publicKeyWif) ;
+            System.out.println ( "      : " + publicKeyWif + " -> " + verified) ;
 
             return signature;
         }
@@ -688,6 +720,97 @@ public class EOSWalletSample {
         }
 
         public static String recoverPublicKey(String signature, byte[] digest) throws Exception {
+            ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
+            ECCurve ec = ecCurve.getCurve();
+            EllipticCurve ellipticCurve = EC5Util.convertCurve(ec, new byte[0]);
+            ECField field = ellipticCurve.getField();
+
+            ECPoint G = ecCurve.getG();
+            BigInteger p = ((java.security.spec.ECFieldFp) field).getP();
+
+            String publicKeyWif = null;
+
+            byte[] sigBytes = Base58.decode(signature);
+            if ( sigBytes.length != 65 ) {
+//                throw new RuntimeException("Invalid Signature Length" );
+            }
+            byte recID = sigBytes[0];
+            if ( (recID - 27) != (recID - 27 & 7) ) {
+                throw new RuntimeException ("Invalid Signature Parameter");
+            }
+            recID -= 27 ;
+            recID = (byte)(recID & 3);
+            byte[] rBytes = Arrays.copyOfRange(sigBytes, 1, 33);
+            byte[] sBytes = Arrays.copyOfRange(sigBytes, 33, 33+32);
+
+            System.out.println ( " 2 r : " + Hex.encodeHexString(rBytes) ) ;
+            System.out.println ( " 2 s : " + Hex.encodeHexString(sBytes) ) ;
+
+            BigInteger r = new BigInteger(1, rBytes);
+            BigInteger s = new BigInteger(1, sBytes);
+
+            BigInteger n = ecCurve.getN();
+            BigInteger i = BigInteger.valueOf((long)recID / 2);
+            BigInteger x = r.add(i.multiply(n));
+
+            if ( x.compareTo(p) >= 0 ) {
+                return "";
+            }
+
+            ECPoint R = decompressKey(x, (recID & 1) == 1, ec);
+
+            System.out.println ( " 2 R.x : " + Hex.encodeHexString(R.getX().toBigInteger().toByteArray()) ) ;
+            System.out.println ( " 2 R.y : " + Hex.encodeHexString(R.getY().toBigInteger().toByteArray()) ) ;
+
+
+            if ( !R.multiply(n).isInfinity()) {
+                throw new RuntimeException("Invalid Signature - Point is not on curve") ;
+            }
+
+            BigInteger e = new BigInteger(1, digest) ;
+
+            System.out.println ( " 2 e : " + Hex.encodeHexString(e.toByteArray()) ) ;
+
+            BigInteger eInv = BigInteger.ZERO.subtract(e).mod(n);
+            BigInteger rInv = r.modInverse(n);
+            BigInteger srInv = rInv.multiply(s).mod(n);
+            BigInteger eInvrInv = rInv.multiply(eInv).mod(n);
+            ECPoint Q = ECAlgorithms.sumOfTwoMultiplies(G, eInvrInv, R, srInv);
+
+            System.out.println ( " 2 Q.x : " + Hex.encodeHexString(Q.getX().toBigInteger().toByteArray()));
+            System.out.println ( " 2 Q.y : " + Hex.encodeHexString(Q.getY().toBigInteger().toByteArray()));
+
+            // Create Public Key from Q.
+            KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
+            ECPublicKeySpec pubSpec = new ECPublicKeySpec(Q, ecCurve);
+            ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(pubSpec);
+
+            publicKeyWif = publicKeyToWif(publicKey);
+
+            return publicKeyWif;
+        }
+
+        private static ECPoint decompressKey(BigInteger xBN, boolean yBit,ECCurve curve) {
+            X9IntegerConverter x9 = new X9IntegerConverter();
+            byte[] compEnc = x9.integerToBytes(xBN, 1 + x9.getByteLength(curve));
+            compEnc[0] = (byte)(yBit ? 0x03 : 0x02) ;
+            return curve.decodePoint(compEnc);
+        }
+
+        public static String recoverPublicKey2(String signature, byte[] digest) throws Exception {
+
+            ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
+            ECCurve ec = ecCurve.getCurve();
+            EllipticCurve ellipticCurve = EC5Util.convertCurve(ec, new byte[0]);
+            ECField field = ellipticCurve.getField();
+
+            BigInteger n = ecCurve.getN();
+            ECPoint G = ecCurve.getG();
+            BigInteger a = ec.getA().toBigInteger();
+            BigInteger b = ec.getB().toBigInteger();
+            BigInteger p = ((java.security.spec.ECFieldFp) field).getP();
+            BigInteger pOverFour = p.add(BigInteger.ONE).shiftRight(2);
+
             String publicKeyWif = null;
 
             byte[] sigBytes = Base58.decode(signature);
@@ -695,22 +818,27 @@ public class EOSWalletSample {
                 throw new RuntimeException("Invalid Signature Length" );
             }
             byte i = sigBytes[0];
-            if ( (i - 27) == (i - 27 & 7) ) {
-//                throw new RuntimeException ("Invalid Signature Parameter");
+            if ( (i - 27) != (i - 27 & 7) ) {
+                throw new RuntimeException ("Invalid Signature Parameter");
             }
             byte[] rBytes = Arrays.copyOfRange(sigBytes, 1, 33);
             byte[] sBytes = Arrays.copyOfRange(sigBytes, 33, sigBytes.length);
 
+            System.out.println ( "   r : " + Hex.encodeHexString(rBytes) ) ;
+            System.out.println ( "   s : " + Hex.encodeHexString(sBytes) ) ;
+
             BigInteger e = new BigInteger(1, digest);
+            int messageLength = digest.length * 8;
+            if ( n.bitLength() < messageLength) {
+                e = e.shiftRight( messageLength - n.bitLength());
+                System.out.println("+++ Shifting e");
+            }
+
+            System.out.println ( "   e : " + Hex.encodeHexString(e.toByteArray()) ) ;
 
             byte i2 = i ;
             i2 -= 27;
             i2 = (byte)(i2 & 3);
-
-            ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
-
-            BigInteger n = ecCurve.getN();
-            ECPoint G = ecCurve.getG();
 
             BigInteger r = new BigInteger(1, rBytes);
             BigInteger s = new BigInteger(1, sBytes);
@@ -725,20 +853,29 @@ public class EOSWalletSample {
             boolean isYOdd = ( i2 & 1 ) > 0 ;
             boolean isSecondKey = (i2 >> 1 & 1) > 0;
 
-// FIXME - When isSecondKey is true, x is outside the range of the curve!!
+            // Calculate Y from the given X
+            // FIXME - When isSecondKey is true, x is outside the range of the curve!!
             BigInteger x = (isSecondKey ? r.add(n) : r);
+            if ( x.compareTo(p) >= 0 ) {
+                return "";
+            }
 
-            ECCurve ec = ecCurve.getCurve();
-            EllipticCurve ellipticCurve = EC5Util.convertCurve(ec, new byte[0]);
-            ECField field = ellipticCurve.getField();
+            System.out.println("   x : " + Hex.encodeHexString(x.toByteArray()));
 
-            BigInteger a = ec.getA().toBigInteger();
-            BigInteger b = ec.getB().toBigInteger();
-            BigInteger p = ((java.security.spec.ECFieldFp) field).getP();
-            BigInteger pOverFour = p.add(BigInteger.ONE).shiftRight(2);
+//            // Encode Point in compressed format, then decode.
+//            byte[] rPrimeBytes = new byte[rBytes.length + 1];
+//            rPrimeBytes[0] = (byte)(0x02 + (i2 & 1));
+//            System.arraycopy(rBytes, 0, rPrimeBytes, 1, rBytes.length);
+//            ECPoint Rprime = ec.decodePoint(rPrimeBytes);
+//
+//            System.out.println("   Rprime.x : " + Hex.encodeHexString(Rprime.getX().toBigInteger().toByteArray()));
+//            System.out.println("   Rprime.y : " + Hex.encodeHexString(Rprime.getY().toBigInteger().toByteArray()));
 
             BigInteger alpha = x.pow(3).add(a.multiply(x)).add(b).mod(p);
             BigInteger beta = alpha.modPow(pOverFour, p);
+
+            System.out.println("   alpha : " + Hex.encodeHexString(alpha.toByteArray()));
+            System.out.println("   beta  : " + Hex.encodeHexString(beta.toByteArray()));
 
             BigInteger y = beta;
             if ( !beta.testBit(0) ^ !isYOdd ) {
@@ -746,6 +883,9 @@ public class EOSWalletSample {
             }
 
             ECPoint R = ec.createPoint(x, y, false);
+
+            System.out.println("   R.x : " + Hex.encodeHexString(x.toByteArray()));
+            System.out.println("   R.y : " + Hex.encodeHexString(y.toByteArray()));
 
             ECPoint nR = R.multiply(n);
             if ( ! nR.isInfinity() ) {
@@ -756,7 +896,11 @@ public class EOSWalletSample {
 
             BigInteger rInv = r.modInverse(n);
 
+            // (sR + -eG) r^-1
             ECPoint Q = R.multiply(s).add(G.multiply(eNeg)).multiply(rInv);
+
+            System.out.println ( "   Q.x : " + Hex.encodeHexString(Q.getX().toBigInteger().toByteArray()));
+            System.out.println ( "   Q.y : " + Hex.encodeHexString(Q.getY().toBigInteger().toByteArray()));
 
             // Create Public Key from Q.
             KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
@@ -783,9 +927,11 @@ public class EOSWalletSample {
 
             if (r.length == 33 && r[0] == 0x00) {
                 r = Arrays.copyOfRange(r, 1, r.length);
+                System.out.println ( "++ Trimmed r") ;
             }
             if ( s.length == 33 && s[0] == 0x00) {
                 s = Arrays.copyOfRange(s, 1, s.length);
+                System.out.println ( "++ Trimmed s") ;
             }
 
             byte i = (byte)(27 + 4 + recID) ;
