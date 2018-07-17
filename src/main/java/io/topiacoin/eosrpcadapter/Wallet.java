@@ -13,26 +13,26 @@ public interface Wallet {
 
     List<String> list() throws WalletException;
 
-    boolean open(String name) throws WalletException;
+    boolean open(String walletName) throws WalletException;
 
-    String create(String name) throws WalletException;
+    String create(String walletName) throws WalletException;
 
-    boolean lock(String name) throws WalletException;
+    boolean lock(String walletName) throws WalletException;
 
-    boolean unlock(String name,
+    boolean unlock(String walletName,
                    String password) throws WalletException;
 
     boolean lockAll() throws WalletException;
 
-    List<String> getPublicKeys(String name) throws WalletException;
+    List<String> getPublicKeys(String walletName) throws WalletException;
 
-    Keys listKeys(String name,
+    Keys listKeys(String walletName,
                   String password) throws WalletException;
 
-    boolean importKey(String name,
+    boolean importKey(String walletName,
                       String key) throws WalletException;
 
-    boolean setTimeout(String name, int timeoutSecs) throws WalletException;
+    boolean setTimeout(String walletName, int timeoutSecs) throws WalletException;
 
     SignedTransaction signTransaction(Transaction transaction,
                                       List<String> keys) throws WalletException;

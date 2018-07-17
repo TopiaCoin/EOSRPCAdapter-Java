@@ -2,6 +2,8 @@ package io.topiacoin.eosrpcadapter.exceptions;
 
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 
+import java.security.NoSuchProviderException;
+
 public class WalletException extends EOSException {
     /**
      * Constructs a new exception with {@code null} as its detail message. The cause is not initialized, and may
@@ -49,5 +51,13 @@ public class WalletException extends EOSException {
      */
     public WalletException(Throwable cause, ErrorResponse details) {
         super(cause, details);
+    }
+
+    public WalletException(String s, Throwable e) {
+        super(s, e);
+    }
+
+    public WalletException(String s) {
+        super(s);
     }
 }

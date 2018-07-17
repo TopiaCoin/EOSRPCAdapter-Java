@@ -162,14 +162,14 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean unlock(String name,
+    public boolean unlock(String walletName,
                           String password) throws WalletException {
         boolean unlocked = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/unlock");
 
-            String request = "[\"" + name + "\",\"" + password + "\"]";
+            String request = "[\"" + walletName + "\",\"" + password + "\"]";
 
             _log.debug("Unlock Request: " + request);
 
@@ -232,7 +232,7 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public List<String> getPublicKeys(String name) throws WalletException {
+    public List<String> getPublicKeys(String walletName) throws WalletException {
         List<String> publicKeys = null;
 
         try {
@@ -260,14 +260,14 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public Keys listKeys(String name,
+    public Keys listKeys(String walletName,
                          String password) throws WalletException {
         Keys keys = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/list_keys");
 
-            String request = "[\"" + name + "\",\"" + password + "\"]";
+            String request = "[\"" + walletName + "\",\"" + password + "\"]";
 
             _log.debug("List Keys Request: " + request);
 
@@ -299,14 +299,14 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean importKey(String name,
+    public boolean importKey(String walletName,
                              String key) throws WalletException {
         boolean imported = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/import_key");
 
-            String request = "[\"" + name + "\",\"" + key + "\"]";
+            String request = "[\"" + walletName + "\",\"" + key + "\"]";
 
             _log.debug("Import Key Request: " + request);
 
@@ -332,7 +332,7 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean setTimeout(String name, int timeoutSecs) throws WalletException {
+    public boolean setTimeout(String walletName, int timeoutSecs) throws WalletException {
         boolean timeoutSet = false;
 
         try {

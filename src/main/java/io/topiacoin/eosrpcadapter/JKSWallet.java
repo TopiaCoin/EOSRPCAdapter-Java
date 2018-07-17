@@ -1,170 +1,201 @@
 package io.topiacoin.eosrpcadapter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
-import org.apache.commons.io.IOUtils;
+import io.topiacoin.eosrpcadapter.util.Base58;
+import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
+import org.bouncycastle.jce.ECNamedCurveTable;
+import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
+import org.bouncycastle.math.ec.ECPoint;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.net.URL;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
+import java.nio.ByteBuffer;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
+import java.security.NoSuchProviderException;
 import java.security.PublicKey;
-import java.security.cert.CertificateException;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.TreeMap;
 
 public class JKSWallet implements Wallet {
 
-    private static final String PW_PREFIX = "PW";
+    private final Log _log = LogFactory.getLog(this.getClass());
+
     private static final String DEFAULT_WALLET_NAME = "default";
-    private static final String WALLET_EXTENSION = ".jkswallet";
     private static final int DEFAULT_WALLET_TIMEOUT = 900000; // 15 minutes
 
     private final Timer _lockTimer = new Timer("walletLockTimer");
+    private final Map<String, TimerTask> _walletLockTasks= new HashMap<String, TimerTask>();
 
-    private File walletPath ;
-    private Map<String,WalletData> _wallets;
+    private Map<String, EOSWallet> _eosWallets;
 
     public JKSWallet() {
-
-        String home = System.getProperty("user.home");
-        walletPath = new File(home + "/.wallets/") ;
-        walletPath.mkdirs();
-
-        _wallets = new HashMap<String, WalletData>();
-
-        // Always load the default wallet, it available.
-        try {
-            open(DEFAULT_WALLET_NAME);
-        } catch (WalletException e) {
-            // NOOP
-        }
+        _eosWallets = new HashMap<String, EOSWallet>();
     }
 
     @Override
     public String createKey() throws WalletException {
+        String newKeyWif = null ;
 
-        EOSKey newKey = EOSKey.randomKey();
+        try {
+            ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
+            newKeyWif = EOSKeysUtil.privateKeyToWif(newKey);
+        } catch (NoSuchProviderException e) {
+            throw new WalletException("Unable to load the required Security Provider", e) ;
+        } catch (NoSuchAlgorithmException e) {
+            throw new WalletException("Unable to find the required encryption algorithms", e) ;
+        } catch (InvalidKeySpecException e) {
+            throw new WalletException("Unable to create new key", e);
+        }
 
-        return newKey.toWif();
+        return newKeyWif;
     }
 
     @Override
     public List<String> list() throws WalletException {
-        return new ArrayList<String>(_wallets.keySet());
+        return new ArrayList<String>(_eosWallets.keySet());
     }
 
     @Override
     public boolean open(String name) throws WalletException {
-        if ( name == null ) {
+        if (name == null) {
             name = DEFAULT_WALLET_NAME;
         }
-        WalletData wallet = _wallets.get(name);
-        if (wallet == null) {
-            File keyStorePath = new File(walletPath, name + WALLET_EXTENSION);
-            if (keyStorePath.exists()) {
-                wallet = new WalletData(keyStorePath);
-                _wallets.put(name, wallet);
+        try {
+            EOSWallet wallet = _eosWallets.get(name);
+            if (wallet == null) {
+                wallet = EOSWallet.loadWallet(name);
+                wallet._lockTimeout = DEFAULT_WALLET_TIMEOUT;
+                _eosWallets.put(name, wallet);
             }
+            return (wallet != null);
+        } catch (IOException e) {
+            throw new WalletException("Failed to load the specified wallet: " + name, e);
         }
-        return (wallet != null);
     }
 
     @Override
-    public String create(String name) throws WalletException {
-        if ( name == null ) {
-            name = DEFAULT_WALLET_NAME;
+    public String create(String walletName) throws WalletException {
+        if (walletName == null) {
+            walletName = DEFAULT_WALLET_NAME;
         }
 
-        if ( _wallets.containsKey(name)) {
-            throw new WalletException("A wallet with the specified name already exists", null);
-        }
-
-        String password = generatePassword() ;
-
+        String password = null;
         try {
-            File keyStorePath = new File(walletPath, name + WALLET_EXTENSION);
-            KeyStore keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(null, null);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            keyStore.store(baos, password.toCharArray());
-
-            byte[] bytes = baos.toByteArray();
-
-            WalletData walletData = new WalletData(keyStorePath, bytes);
-
-            walletData.save();
-
-            _wallets.put(name, walletData);
-        } catch (KeyStoreException e) {
-            throw new WalletException("Unable to create the requested wallet", e, null);
-        } catch (IOException e) {
-            throw new WalletException("Unable to create the requested wallet", e, null);
+            password = EOSKeysUtil.generateRandomPassword();
+            EOSWallet wallet = EOSWallet.createWallet(walletName, password);
+            wallet._lockTimeout = DEFAULT_WALLET_TIMEOUT;
+            _eosWallets.put(walletName, wallet);
         } catch (NoSuchAlgorithmException e) {
-            throw new WalletException("Unable to create the requested wallet", e, null);
-        } catch (CertificateException e) {
-            throw new WalletException("Unable to create the requested wallet", e, null);
+            throw new WalletException("Failed to create new wallet: " + walletName, e);
+        } catch ( IOException e) {
+            throw new WalletException("Failed to create new wallet: " + walletName, e);
         }
 
         return password;
     }
 
     @Override
-    public boolean lock(String name) throws WalletException {
-        if ( name == null ) {
-            name = DEFAULT_WALLET_NAME;
+    public boolean lock(String walletName) throws WalletException {
+        if (walletName == null) {
+            walletName = DEFAULT_WALLET_NAME;
         }
 
-        if ( !_wallets.containsKey(name)) {
-            throw new WalletException("The specified wallet does not exist", null);
+        if (!_eosWallets.containsKey(walletName)) {
+            throw new WalletException("The specified wallet does not exist: " + walletName);
         }
 
-        WalletData walletData = _wallets.get(name);
+        try {
+            EOSWallet walletData = _eosWallets.get(walletName);
 
-        walletData.lock();
+            walletData.lock();
+
+            TimerTask task = _walletLockTasks.remove(walletName);
+            if ( task != null ) {
+                task.cancel();
+            }
+        } catch (IOException e) {
+            return false;
+        }
 
         return true;
     }
 
     @Override
-    public boolean unlock(String name, String password) throws WalletException {
-        if ( name == null ) {
-            name = DEFAULT_WALLET_NAME;
+    public boolean unlock(String walletName, String password) throws WalletException {
+        if (walletName == null) {
+            walletName = DEFAULT_WALLET_NAME;
         }
 
-        if ( !_wallets.containsKey(name)) {
-            throw new WalletException("The specified wallet does not exist", null);
+        if (!_eosWallets.containsKey(walletName)) {
+            throw new WalletException("The specified wallet does not exist: " + walletName);
         }
 
-        WalletData walletData = _wallets.get(name);
+        try {
+            EOSWallet walletData = _eosWallets.get(walletName);
 
-        boolean unlocked = walletData.unlock(password);
+            walletData.unlock(password);
 
-        return unlocked;
+            TimerTask task = new WalletAutoLockTask(walletData) ;
+            _lockTimer.schedule(task, walletData._lockTimeout);
+        } catch (Exception e) {
+            return false;
+        }
+
+        return true;
     }
 
     @Override
     public boolean lockAll() throws WalletException {
 
-        for ( WalletData walletData : _wallets.values()) {
-            walletData.lock();
+        boolean allLocked = true ;
+
+        for ( EOSWallet walletData : _eosWallets.values()) {
+            try {
+                walletData.lock();
+            } catch (IOException e) {
+                allLocked = false ;
+            }
         }
 
-        return true;
+        _walletLockTasks.clear();
+        _lockTimer.purge();
+
+        return allLocked;
     }
 
     @Override
@@ -173,89 +204,103 @@ public class JKSWallet implements Wallet {
             name = DEFAULT_WALLET_NAME;
         }
 
-        if ( !_wallets.containsKey(name)) {
-            throw new WalletException("The specified wallet does not exist", null);
+        if ( !_eosWallets.containsKey(name)) {
+            throw new WalletException("The specified wallet does not exist");
         }
 
-        WalletData walletData = _wallets.get(name);
+        List<String> publicKeys = null ;
 
-        // TODO - Implement this method
+        EOSWallet walletData = _eosWallets.get(name);
 
-        return null;
+        publicKeys = walletData.listPublicKeys() ;
+
+        return publicKeys;
     }
 
     @Override
-    public Keys listKeys(String name, String password) throws WalletException {
-        if ( name == null ) {
-            name = DEFAULT_WALLET_NAME;
+    public Keys listKeys(String walletName, String password) throws WalletException {
+        if ( walletName == null ) {
+            walletName = DEFAULT_WALLET_NAME;
         }
 
-        if ( !_wallets.containsKey(name)) {
-            throw new WalletException("The specified wallet does not exist", null);
+        if ( !_eosWallets.containsKey(walletName)) {
+            throw new WalletException("The specified wallet does not exist");
         }
 
-        WalletData walletData = _wallets.get(name);
+        List<List<String>> keyPairsList = null ;
 
-        // TODO - Implement this method
+        EOSWallet walletData = _eosWallets.get(walletName);
 
-        return null;
+        keyPairsList = walletData.listPrivateKeys() ;
+
+        Keys keys = new Keys();
+        keys.keys = new ArrayList<Keys.KeyPair>();
+        for ( List<String> keyPairList : keyPairsList) {
+            String publicKey = keyPairList.get(0);
+            String privateKey = keyPairList.get(1);
+            Keys.KeyPair keyPair = new Keys.KeyPair(publicKey, privateKey) ;
+            keys.keys.add(keyPair);
+        }
+        return keys;
     }
 
     @Override
-    public boolean importKey(String name, String key) throws WalletException {
-        if ( name == null ) {
-            name = DEFAULT_WALLET_NAME;
+    public boolean importKey(String walletName, String key) throws WalletException {
+        if ( walletName == null ) {
+            walletName = DEFAULT_WALLET_NAME;
         }
 
-        if ( !_wallets.containsKey(name)) {
-            throw new WalletException("The specified wallet does not exist", null);
+        if ( !_eosWallets.containsKey(walletName)) {
+            throw new WalletException("The specified wallet does not exist");
         }
 
-        WalletData walletData = _wallets.get(name);
+        boolean imported = false ;
 
-        EOSKey eosKey = EOSKey.fromWif(key);
+        EOSWallet walletData = _eosWallets.get(walletName);
 
-        if ( eosKey == null ) {
-            throw new WalletException("Invalid Key Specified", null) ;
+        try {
+            walletData.importKey(key);
+            imported = true;
+        } catch ( WalletException e ) {
+            _log.warn ( "Failed to import key to specified wallet: " + walletName, e) ;
         }
 
-        String alias = eosKey.getPublicKeyString() ;
-        walletData.importKey(alias, eosKey.getPrivateKey());
-        // TODO - Implement this method
-
-        return false;
+        return imported;
     }
 
     @Override
-    public boolean setTimeout(String name, int timeoutSecs) throws WalletException {
-        if ( name == null ) {
-            name = DEFAULT_WALLET_NAME;
+    public boolean setTimeout(String walletName, int timeoutSecs) throws WalletException {
+
+        if ( walletName == null ) {
+            walletName = DEFAULT_WALLET_NAME;
         }
 
-        if ( !_wallets.containsKey(name)) {
-            throw new WalletException("The specified wallet does not exist", null);
+        if ( !_eosWallets.containsKey(walletName)) {
+            throw new WalletException("The specified wallet does not exist");
         }
 
-        WalletData walletData = _wallets.get(name);
+        EOSWallet walletData = _eosWallets.get(walletName);
+        walletData._lockTimeout = timeoutSecs * 1000 ;
 
-        walletData.setWalletTimeout(timeoutSecs * 1000);
+        if ( !walletData.isLocked()) {
+            TimerTask task = _walletLockTasks.remove(walletName);
+            if ( task != null ) {
+                task.cancel();
+            }
+            task = new WalletAutoLockTask(walletData) ;
+            _lockTimer.schedule(task, walletData._lockTimeout);
+        }
 
         return true;
     }
 
     @Override
     public SignedTransaction signTransaction(Transaction transaction, List<String> keys) throws WalletException {
-
-        // TODO - Implement this method
-
         return null;
     }
 
     @Override
     public SignedTransaction signTransaction(Transaction transaction, List<String> keys, String chainID) throws WalletException {
-
-        // TODO - Implement this method
-
         return null;
     }
 
@@ -264,188 +309,399 @@ public class JKSWallet implements Wallet {
         return null;
     }
 
+    // -------- AutoLock Timer Class --------
 
-    // ======== Private Methods ========
+    private static class WalletAutoLockTask extends TimerTask {
 
-    private String generatePassword() {
-        String password = null ;
+        private final EOSWallet wallet;
 
-        password = PW_PREFIX + "";
+        public WalletAutoLockTask(EOSWallet wallet) {
+            this.wallet = wallet;
+        }
 
-        return password ;
+        /**
+         * The action to be performed by this timer task.
+         */
+        @Override
+        public void run() {
+            try {
+                System.out.println ( "Auto Lock Executing");
+                wallet.lock();
+            } catch (IOException e) {
+                // NOOP
+                e.printStackTrace();
+            }
+        }
     }
 
-    // ======== Inner Classes ========
+    // -------- EOS Wallet Class --------
 
-    private class WalletData {
+    private static class EOSWallet {
+        public long _lockTimeout;
+        public String _wallet_filename;
+        public Map<String,String> _keys;
+        public byte[] _checksum;
+        public WalletData _wallet;  // -> Contains cipher_keys
 
-        private final File filePath;
-        private byte[] keystoreData;
-        private KeyStore keystore;
-        private String password;
-        private TimerTask lockTask;
+        public static EOSWallet createWallet(String name, String password) throws NoSuchAlgorithmException, IOException {
+            EOSWallet wallet = new EOSWallet();
 
-        private int walletTimeout = DEFAULT_WALLET_TIMEOUT;
+            MessageDigest sha512 = MessageDigest.getInstance("SHA-512");
+            byte[] hashBytes = sha512.digest(password.getBytes());
 
-        public WalletData(File filePath) {
-            this.filePath = filePath;
-            load() ;
+            wallet._wallet_filename = name + ".wallet";
+            wallet._checksum = hashBytes;
+
+            wallet.updateWalletCipherKeys();
+            wallet.saveWallet();
+
+            return wallet;
         }
 
-        public WalletData(File keyStorePath, byte[] bytes) {
-            this.filePath = keyStorePath;
-            this.keystoreData = bytes;
-        }
+        public static EOSWallet loadWallet(String walletName) throws IOException {
+            File walletFile = new File (walletName + ".wallet");
 
-        public boolean unlock(String password) {
-            if ( keystoreData == null ) {
-                load();
+            if ( !walletFile.exists() || !walletFile.isFile()) {
+                throw new FileNotFoundException("The Specified Wallet could not be loaded");
             }
-            boolean unlocked = false;
+
+            ObjectMapper objectMapper = new ObjectMapper();
+
+            WalletData walletData  = objectMapper.readValue(walletFile, WalletData.class);
+            EOSWallet wallet = new EOSWallet();
+            wallet._wallet = walletData;
+            wallet._wallet_filename = walletFile.getName();
+            return wallet;
+        }
+
+        private EOSWallet() {
+            _keys = new TreeMap<String, String>();
+            _wallet = new WalletData();
+        }
+
+        public void saveWallet() throws IOException {
+            File walletFile = new File(_wallet_filename);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.writeValue(walletFile, _wallet);
+        }
+
+        public void unlock(String password) throws WalletException {
             try {
-                ByteArrayInputStream bais = new ByteArrayInputStream(keystoreData);
-                keystore = KeyStore.getInstance("JKS");
-                keystore.load(bais, password.toCharArray());
-                unlocked = true ;
+                byte[] passwordBytes = password.getBytes("UTF-8");
 
-                    // Schedule the wallet to auto lock
-                lockTask = new TimerTask() {
-                    @Override
-                    public void run() {
-                        lock();
-                    }
-                };
-                 _lockTimer.schedule(lockTask, walletTimeout);
-            } catch (CertificateException e) {
-                e.printStackTrace();
-            } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
-            } catch (KeyStoreException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+                MessageDigest sha512 = MessageDigest.getInstance("SHA-512");
+                byte[] hashBytes = sha512.digest(passwordBytes);
+                SecretKey key = new SecretKeySpec(hashBytes, 0, 32, "AES");
+                IvParameterSpec ivParams = new IvParameterSpec(hashBytes, 32, 16);
+
+                Cipher aes = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                aes.init(Cipher.DECRYPT_MODE, key, ivParams);
+
+                byte[] walletBytes = Hex.decodeHex(_wallet.cipher_keys.toCharArray());
+                byte[] decryptedWalletBytes = aes.doFinal(walletBytes);
+
+                // Unpack decrypted wallet
+                EOSWallet unpackedWallet = unpackWallet(decryptedWalletBytes);
+                if (!Arrays.equals(unpackedWallet._checksum, hashBytes)) {
+                    throw new RuntimeException("Password was not correct");
+                }
+                _checksum = unpackedWallet._checksum;
+                _keys = unpackedWallet._keys;
+            } catch (Exception e) {
+                throw new WalletException("Failed to unloack Wallet", e) ;
             }
-
-            return unlocked;
         }
 
-        public void lock() {
-            keystore = null;
+        public void lock() throws IOException {
+            // Pack the Wallet
+            updateWalletCipherKeys();
 
-            // Cancel the TimerTask portion of the class.
-            if ( lockTask != null) {
-                lockTask.cancel();
-                lockTask = null;
-            }
+            // Clear out the decrypted data
+            _keys = null;
+            _checksum = null;
         }
 
         public boolean isLocked() {
-            return keystore == null ;
+            return _checksum == null;
         }
 
-        public void importKey(String alias, PrivateKey privateKey) throws WalletException{
+        public String createKey() throws Exception {
+            if ( isLocked() ) {
+                throw new WalletException("Wallet is Locked") ;
+            }
+            String publicKeyWif = null;
+            String privateKeyWif = null;
 
-            try {
-                keystore.setKeyEntry(alias, privateKey, null, null);
-            } catch (KeyStoreException e) {
-                throw new WalletException("Unable to import key", e, null);
+            // Crate the new Private Key
+            ECPrivateKey privateKey = EOSKeysUtil.generateECPrivateKey();
+            ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPrivateKey(privateKey);
+
+            // Obtain the public and private keys in WIF format
+            publicKeyWif = EOSKeysUtil.publicKeyToWif(publicKey);
+            privateKeyWif = EOSKeysUtil.privateKeyToWif(privateKey);
+
+            // Store the keys in the map
+            _keys.put(publicKeyWif, privateKeyWif);
+
+            // Pack, Encrypt, and Save the wallet to disk
+            updateWalletCipherKeys();
+            saveWallet();
+
+            return publicKeyWif;
+        }
+
+        public String importKey(String privateKeyWif) throws WalletException {
+            if ( isLocked() ) {
+                throw new WalletException("Wallet is Locked") ;
             }
 
-            save();
-        }
-
-        public void createKey() throws WalletException{
-
-            // TODO - Implement this method
-
-
-        }
-
-        public List<PublicKey> listPublicKeys() {
-
-            // TODO - Implement this method
-
-            return null;
-        }
-
-        public List<PrivateKey> listPrivateKeys() throws WalletException {
-
-            // TODO - Implement this method
-
-            return null;
-        }
-
-        public void load() {
             try {
-                FileInputStream fis = new FileInputStream(filePath);
-                ByteArrayOutputStream baos= new ByteArrayOutputStream();
+                // Obtain the Public Key for the given private key and convert it to WIF format
+                ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPrivateString(privateKeyWif);
+                String publicKeyWif = EOSKeysUtil.publicKeyToWif(publicKey);
 
-                IOUtils.copy(fis, baos) ;
+                // Store the keys in the map
+                _keys.put(publicKeyWif, privateKeyWif);
 
-                keystoreData = baos.toByteArray();
+                // Pack, Encrypt, and Save the wallet to disk
+                updateWalletCipherKeys();
+                saveWallet();
 
-                fis.close();
-                baos.close();
-
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+                return publicKeyWif;
+            } catch ( Exception e ) {
+                throw new WalletException("Failed to import the specified Key", e);
             }
         }
 
-        public void save() {
-            try {
-                if ( keystore != null ) {
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    keystore.store(baos, password.toCharArray());
-                    keystoreData = baos.toByteArray();
+        public void removeKey(String publicKeyWif) throws Exception {
+            if ( isLocked() ) {
+                throw new WalletException("Wallet is Locked") ;
+            }
+
+            // Remove the key from the key map
+            _keys.remove(publicKeyWif) ;
+
+            // Pack, Encrypt, and Save the wallet to disk
+            updateWalletCipherKeys();
+            saveWallet();
+        }
+
+        public String signDigest(byte[] digest, String publicKeyWif) throws Exception {
+            String signature = null;
+
+            String privateKeyWif = _keys.get(publicKeyWif) ;
+            ECPrivateKey privateKey = EOSKeysUtil.getPrivateKeyFromPrivateString(privateKeyWif);
+            ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif);
+
+            ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
+            ECDomainParameters curve = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
+                    params.getH());
+
+            ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+            ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(privateKey.getS(), curve);
+            signer.init(true, privKey);
+
+            BigInteger[] components = signer.generateSignature(digest) ;
+
+            BigInteger r = components[0];
+            BigInteger s = components[1];
+
+            // Compile r and s into a signature string along with the calculated i.
+            byte[] rBytes = r.toByteArray();
+            byte[] sBytes = s.toByteArray();
+            ByteBuffer asn1Buffer = ByteBuffer.allocate(1024);
+            asn1Buffer.put((byte)0x30);
+            asn1Buffer.put((byte)(rBytes.length + sBytes.length + 4));
+            asn1Buffer.put((byte)0x02);
+            asn1Buffer.put((byte)rBytes.length);
+            asn1Buffer.put(rBytes);
+            asn1Buffer.put((byte)0x02);
+            asn1Buffer.put((byte)sBytes.length);
+            asn1Buffer.put(sBytes);
+            asn1Buffer.flip();
+            byte[] sigBytes = new byte[asn1Buffer.remaining()];
+            asn1Buffer.get(sigBytes);
+
+            int i = 0 ;
+            while ( i < 4 ) {
+                String testSig = EOSKeysUtil.asn1SigToWif(sigBytes, publicKey, (byte)i++);
+                String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
+                if ( publicKeyWif.equals(recoveredKey)) {
+                    signature = testSig;
+                    break;
                 }
+            }
+            return signature;
+        }
 
-                FileOutputStream fos = new FileOutputStream(filePath);
-                fos.write(keystoreData);
-                fos.close();
 
-            } catch (CertificateException e) {
-                e.printStackTrace();
-            } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
-            } catch (KeyStoreException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+        public boolean verifySignature(byte[] digest, String signature, String publicKeyWif) throws Exception {
+            if (isLocked()) {
+                throw new WalletException("Wallet is Locked");
+            }
+
+            PublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif) ;
+            byte[] xBytes = Base58.decode(publicKeyWif.substring(3));
+            xBytes = Arrays.copyOfRange(xBytes, 0, xBytes.length - 4);
+
+            ECNamedCurveParameterSpec paramsSpec = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
+            ECDomainParameters curve = new ECDomainParameters(
+                    paramsSpec.getCurve(),
+                    paramsSpec.getG(),
+                    paramsSpec.getN(),
+                    paramsSpec.getH());
+            ECPoint G = paramsSpec.getG();
+            BigInteger n = paramsSpec.getN();
+            BigInteger e = new BigInteger(1, digest);
+
+            boolean verified = false;
+            byte[] sigBytes = Base58.decode(signature);
+            ByteBuffer sigBuffer = ByteBuffer.wrap(sigBytes);
+            byte[] rBytes = new byte[32];
+            byte[] sBytes = new byte[32];
+            sigBuffer.get() ;
+            sigBuffer.get(rBytes);
+            sigBuffer.get(sBytes);
+
+            BigInteger r = new BigInteger(1, rBytes) ;
+            BigInteger s = new BigInteger(1, sBytes) ;
+
+            ECDSASigner signer = new ECDSASigner();
+            ECPublicKeyParameters params = new ECPublicKeyParameters(curve.getCurve().decodePoint(xBytes), curve);
+            signer.init(false, params);
+            try {
+                return signer.verifySignature(digest, r, s);
+            } catch (NullPointerException ex) {
+                // Bouncy Castle contains a bug that can cause NPEs given specially crafted signatures. Those signatures
+                // are inherently invalid/attack sigs so we just fail them here rather than crash the thread.
+                ex.printStackTrace();
+                return false;
             }
         }
 
-        public File getFilePath() {
-            return filePath;
+        public List<String> listPublicKeys() throws WalletException {
+            if ( isLocked() ) {
+                throw new WalletException("Wallet is Locked") ;
+            }
+
+            List<String> publicKeys = new ArrayList<String>(_keys.keySet()) ;
+
+            return publicKeys;
         }
 
-        public boolean checkPassword(String password) {
+        public List<List<String>> listPrivateKeys() throws WalletException {
+            if ( isLocked() ) {
+                throw new WalletException("Wallet is Locked") ;
+            }
 
-            // TODO - Implement this method
+            List<List<String>> privateKeys = new ArrayList<List<String>>() ;
 
-            return false ;
+            for ( Map.Entry<String,String> keyEntry : _keys.entrySet()) {
+                List<String> entryList = new ArrayList<String>();
+                entryList.add(keyEntry.getKey()) ;
+                entryList.add(keyEntry.getValue()) ;
+                privateKeys.add(entryList);
+            }
+
+            return privateKeys;
         }
 
-        public void setPassword(String newPassword) {
+        // -------- Private Methods --------
 
-            // TODO - Implement this method
+        private void updateWalletCipherKeys() throws IOException {
+            byte[] packedBytes = packWallet() ;
 
+            try {
+                // Encrypt the packed Bytes and update the Wallet Data
+                SecretKey key = new SecretKeySpec(_checksum, 0, 32, "AES");
+                IvParameterSpec ivParams = new IvParameterSpec(_checksum, 32, 16);
+
+                Cipher aes = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                aes.init(Cipher.ENCRYPT_MODE, key, ivParams);
+
+                byte[] encryptedBytes = aes.doFinal(packedBytes);
+                String walletBytes = Hex.encodeHexString(encryptedBytes);
+                _wallet.cipher_keys = walletBytes;
+            } catch (NoSuchAlgorithmException e) {
+                throw new IOException("Failed to encrypt wallet", e) ;
+            } catch (InvalidKeyException e) {
+                throw new IOException("Failed to encrypt wallet", e) ;
+            } catch (InvalidAlgorithmParameterException e) {
+                throw new IOException("Failed to encrypt wallet", e) ;
+            } catch (NoSuchPaddingException e) {
+                throw new IOException("Failed to encrypt wallet", e) ;
+            } catch (BadPaddingException e) {
+                throw new IOException("Failed to encrypt wallet", e) ;
+            } catch (IllegalBlockSizeException e) {
+                throw new IOException("Failed to encrypt wallet", e) ;
+            }
         }
 
-        public void getPrivateKey(String publicKey) throws WalletException {
+        private byte[] packWallet() {
+            byte NULL_BYTE = (byte) 0x00;
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            buffer.put(_checksum);
+            buffer.put((byte)_keys.size());
+            for ( Map.Entry<String, String> entry : _keys.entrySet() ) {
+                byte[] publicBytes = EOSKeysUtil.keyBytesFromPublicWif(entry.getKey());
+                byte[] privateBytes = EOSKeysUtil.keyBytesFromPrivateWif(entry.getValue());
+                buffer.put(NULL_BYTE);
+                buffer.put(publicBytes);
+                buffer.put(NULL_BYTE);
+                buffer.put(privateBytes);
+            }
 
-            // TODO - Implement this method
+            buffer.flip();
+            byte[] packedBytes = new byte[buffer.remaining()] ;
+            buffer.get(packedBytes);
 
+            return packedBytes ;
         }
 
-        public int getWalletTimeout() {
-            return walletTimeout;
+        private EOSWallet unpackWallet(byte[] decryptedWalletBytes) throws NoSuchAlgorithmException {
+            EOSWallet tempWallet = new EOSWallet();
+            tempWallet._keys = new TreeMap<String, String>();
+            ByteBuffer decryptedByteBuffer = ByteBuffer.wrap(decryptedWalletBytes);
+            tempWallet._checksum = new byte[64];
+            int keyPairCount;
+            decryptedByteBuffer.get(tempWallet._checksum);
+            keyPairCount = decryptedByteBuffer.get();
+            for ( int i = 0 ; i < keyPairCount ; i++ ){
+                decryptedByteBuffer.get();
+                byte[] pubKey = new byte[33]; // Compression Header included
+                byte[] privKey = new byte[32];
+                decryptedByteBuffer.get(pubKey) ;
+                decryptedByteBuffer.get();
+                decryptedByteBuffer.get(privKey);
+                String wifPubKey = EOSKeysUtil.keyBytesToPublicWif(pubKey);
+                String wifPrivKey = EOSKeysUtil.keyBytesToPrivateWif(privKey);
+
+                tempWallet._keys.put(wifPubKey, wifPrivKey);
+            }
+            return tempWallet;
         }
 
-        public void setWalletTimeout(int walletTimeout) {
-            this.walletTimeout = walletTimeout;
+        @Override
+        public String toString() {
+            return "Wallet{" +
+                    "\n\t_wallet_filename='" + _wallet_filename + '\'' +
+                    ", \n\t_keys=" + _keys +
+                    ", \n\t_checksum=" + (_checksum != null ? Hex.encodeHexString(_checksum) : null ) +
+                    ", \n\t_wallet=" + _wallet +
+                    "\n}";
+        }
+
+        private static class WalletData {
+            public String cipher_keys;
+
+            @Override
+            public String toString() {
+                return "WalletData{" +
+                        "cipher_keys=" + cipher_keys +
+                        '}';
+            }
         }
     }
+
 }

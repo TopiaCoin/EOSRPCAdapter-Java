@@ -55,6 +55,14 @@ public class EOSException extends Exception {
 
     private ErrorResponse _details;
 
+    public EOSException(String s, Throwable e) {
+        super(s, e);
+    }
+
+    public EOSException(String s) {
+        super(s);
+    }
+
     public ErrorResponse getDetails() {
         return _details;
     }

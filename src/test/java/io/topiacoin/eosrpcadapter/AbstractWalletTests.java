@@ -1,5 +1,6 @@
 package io.topiacoin.eosrpcadapter;
 
+import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import org.junit.Test;
 
@@ -95,7 +96,7 @@ public abstract class AbstractWalletTests {
         assertTrue(unlockResponse);
 
         // List Public Keys in Wallet
-        List<String> publicKeys = wallet.getPublicKeys(null);
+        List<String> publicKeys = wallet.getPublicKeys(walletName);
         assertNotNull(publicKeys);
         assertEquals(1, publicKeys.size());
 
@@ -114,7 +115,7 @@ public abstract class AbstractWalletTests {
         assertTrue(importResponse);
 
         // List Public Keys in Wallet
-        publicKeys = wallet.getPublicKeys(null);
+        publicKeys = wallet.getPublicKeys(walletName);
         assertNotNull(publicKeys);
         assertEquals(2, publicKeys.size());
 
@@ -129,9 +130,36 @@ public abstract class AbstractWalletTests {
     public void testWalletSetTimeout() throws Exception {
         Wallet wallet = getWallet();
 
-        boolean response = wallet.setTimeout(null, 3600);
+        String walletName = "test-" + System.currentTimeMillis();
+
+        String password = wallet.create(walletName);
+
+        boolean response = wallet.setTimeout(walletName, 3600);
 
         assertTrue(response);
+
+        wallet.unlock(walletName, password) ;
+
+        // Get Keys
+        wallet.getPublicKeys(walletName);
+
+        // Set timeout very small
+        wallet.setTimeout(walletName, 1) ;
+
+        // Wait a moment before trying to grab keys.  Wallet should still be unlocked.
+        Thread.sleep ( 750) ;
+        wallet.getPublicKeys(walletName);
+
+
+        // After waiting longer than the timeout, try to grab keys.  Wallet should now be locked.
+        Thread.sleep(500) ;
+        try {
+            wallet.getPublicKeys(walletName);
+            fail ( "Expected the wallet to have auto locked.");
+        } catch ( WalletException e) {
+            // NOOP - Expected Exception
+        }
+
     }
 
 }
