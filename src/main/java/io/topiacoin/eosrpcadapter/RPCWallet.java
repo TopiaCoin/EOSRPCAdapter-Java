@@ -8,6 +8,7 @@ import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
+import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -15,6 +16,10 @@ import org.apache.commons.logging.LogFactory;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.interfaces.ECPrivateKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,10 +41,20 @@ public class RPCWallet implements Wallet {
 
     @Override
     public String createKey() throws WalletException {
+        String newKeyWif = null ;
 
-        EOSKey eosKey = EOSKey.randomKey();
+        try {
+            ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
+            newKeyWif = EOSKeysUtil.privateKeyToWif(newKey);
+        } catch (NoSuchProviderException e) {
+            throw new WalletException("Unable to load the required Security Provider", e) ;
+        } catch (NoSuchAlgorithmException e) {
+            throw new WalletException("Unable to find the required encryption algorithms", e) ;
+        } catch (InvalidKeySpecException e) {
+            throw new WalletException("Unable to create new key", e);
+        }
 
-        return eosKey.toWif();
+        return newKeyWif;
     }
 
     @Override

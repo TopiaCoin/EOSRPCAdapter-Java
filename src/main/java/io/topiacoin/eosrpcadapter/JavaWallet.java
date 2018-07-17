@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
@@ -51,7 +52,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
 
-public class JKSWallet implements Wallet {
+public class JavaWallet implements Wallet {
 
     private final Log _log = LogFactory.getLog(this.getClass());
 
@@ -63,7 +64,7 @@ public class JKSWallet implements Wallet {
 
     private Map<String, EOSWallet> _eosWallets;
 
-    public JKSWallet() {
+    public JavaWallet() {
         _eosWallets = new HashMap<String, EOSWallet>();
     }
 
@@ -306,7 +307,15 @@ public class JKSWallet implements Wallet {
 
     @Override
     public URL getWalletURL() {
-        return null;
+        URL walletURL = null;
+
+        try {
+            walletURL = new URL("wallet://java");
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return walletURL;
     }
 
     // -------- AutoLock Timer Class --------
