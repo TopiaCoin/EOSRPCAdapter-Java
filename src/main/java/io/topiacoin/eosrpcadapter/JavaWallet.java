@@ -6,7 +6,9 @@ import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.util.Base58;
+import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
 import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -43,9 +45,11 @@ import java.security.PublicKey;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -297,12 +301,50 @@ public class JavaWallet implements Wallet {
 
     @Override
     public SignedTransaction signTransaction(Transaction transaction, List<String> keys) throws WalletException {
-        return null;
+        return signTransaction(transaction, keys, "");
     }
 
     @Override
     public SignedTransaction signTransaction(Transaction transaction, List<String> keys, String chainID) throws WalletException {
-        return null;
+
+        List<String> remainingKeys = new ArrayList<String>(keys);
+        List<String> signatureList = new ArrayList<String>();
+
+        EOSByteWriter eosByteWriter = new EOSByteWriter(10240);
+        byte[] chainIDBytes = null;
+        try {
+            chainIDBytes = Hex.decodeHex(chainID.toCharArray());
+            eosByteWriter.putBytes(chainIDBytes);
+            transaction.pack(eosByteWriter);
+
+            byte[] packedBytes = eosByteWriter.toBytes();
+            byte[] digest = null;
+
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            digest = sha256.digest(packedBytes);
+
+            for ( EOSWallet wallet : _eosWallets.values() ) {
+                Iterator<String> keyItr = remainingKeys.iterator();
+                while ( keyItr.hasNext()) {
+                    String key = keyItr.next();
+                    String signature = wallet.signDigest(digest, key) ;
+                    if ( signature != null ) {
+                        signatureList.add(signature);
+                        keyItr.remove();
+                    }
+                }
+            }
+        } catch (DecoderException e) {
+            throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
+        } catch (ParseException e) {
+            throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
+        }
+
+        SignedTransaction signedTransaction = new SignedTransaction(transaction, signatureList);
+
+        return signedTransaction;
     }
 
     @Override
@@ -345,7 +387,8 @@ public class JavaWallet implements Wallet {
 
     // -------- EOS Wallet Class --------
 
-    private static class EOSWallet {
+    static class EOSWallet {
+        public static final String SIG_PREFIX = "SIG_K1_";
         public long _lockTimeout;
         public String _wallet_filename;
         public Map<String,String> _keys;
@@ -496,52 +539,68 @@ public class JavaWallet implements Wallet {
             saveWallet();
         }
 
-        public String signDigest(byte[] digest, String publicKeyWif) throws Exception {
+        public String signDigest(byte[] digest, String publicKeyWif) throws WalletException {
             String signature = null;
 
-            String privateKeyWif = _keys.get(publicKeyWif) ;
-            ECPrivateKey privateKey = EOSKeysUtil.getPrivateKeyFromPrivateString(privateKeyWif);
-            ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif);
-
-            ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
-            ECDomainParameters curve = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
-                    params.getH());
-
-            ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
-            ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(privateKey.getS(), curve);
-            signer.init(true, privKey);
-
-            BigInteger[] components = signer.generateSignature(digest) ;
-
-            BigInteger r = components[0];
-            BigInteger s = components[1];
-
-            // Compile r and s into a signature string along with the calculated i.
-            byte[] rBytes = r.toByteArray();
-            byte[] sBytes = s.toByteArray();
-            ByteBuffer asn1Buffer = ByteBuffer.allocate(1024);
-            asn1Buffer.put((byte)0x30);
-            asn1Buffer.put((byte)(rBytes.length + sBytes.length + 4));
-            asn1Buffer.put((byte)0x02);
-            asn1Buffer.put((byte)rBytes.length);
-            asn1Buffer.put(rBytes);
-            asn1Buffer.put((byte)0x02);
-            asn1Buffer.put((byte)sBytes.length);
-            asn1Buffer.put(sBytes);
-            asn1Buffer.flip();
-            byte[] sigBytes = new byte[asn1Buffer.remaining()];
-            asn1Buffer.get(sigBytes);
-
-            int i = 0 ;
-            while ( i < 4 ) {
-                String testSig = EOSKeysUtil.asn1SigToWif(sigBytes, publicKey, (byte)i++);
-                String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
-                if ( publicKeyWif.equals(recoveredKey)) {
-                    signature = testSig;
-                    break;
-                }
+            if ( !_keys.containsKey(publicKeyWif ) ) {
+                return null ;
             }
-            return signature;
+
+            try {
+                String privateKeyWif = _keys.get(publicKeyWif);
+                ECPrivateKey privateKey = EOSKeysUtil.getPrivateKeyFromPrivateString(privateKeyWif);
+                ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif);
+
+                ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
+                ECDomainParameters curve = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
+                        params.getH());
+
+                ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+                ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(privateKey.getS(), curve);
+                signer.init(true, privKey);
+
+                BigInteger[] components;
+                do {
+                    components = signer.generateSignature(digest);
+                } while ( components[0].toByteArray().length != 32 && components[1].toByteArray().length!= 32);
+
+                BigInteger r = components[0];
+                BigInteger s = components[1];
+
+                // Compile r and s into a signature string along with the calculated i.
+                byte[] rBytes = r.toByteArray();
+                byte[] sBytes = s.toByteArray();
+                ByteBuffer asn1Buffer = ByteBuffer.allocate(1024);
+                asn1Buffer.put((byte) 0x30);
+                asn1Buffer.put((byte) (rBytes.length + sBytes.length + 4));
+                asn1Buffer.put((byte) 0x02);
+                asn1Buffer.put((byte) rBytes.length);
+                asn1Buffer.put(rBytes);
+                asn1Buffer.put((byte) 0x02);
+                asn1Buffer.put((byte) sBytes.length);
+                asn1Buffer.put(sBytes);
+                asn1Buffer.flip();
+                byte[] sigBytes = new byte[asn1Buffer.remaining()];
+                asn1Buffer.get(sigBytes);
+
+                int i = 0;
+                while (i < 4) {
+                    String testSig = EOSKeysUtil.asn1SigToWif(sigBytes, publicKey, (byte) i++);
+                    String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
+                    if (publicKeyWif.equals(recoveredKey)) {
+                        signature = testSig;
+                        break;
+                    }
+                }
+            } catch (NoSuchAlgorithmException e) {
+                throw new WalletException("Failed to Sign Message", e) ;
+            } catch (NoSuchProviderException e) {
+                throw new WalletException("Failed to Sign Message", e) ;
+            } catch (InvalidKeySpecException e) {
+                throw new WalletException("Failed to Sign Message", e) ;
+            }
+
+            return SIG_PREFIX + signature;
         }
 
 
@@ -550,7 +609,11 @@ public class JavaWallet implements Wallet {
                 throw new WalletException("Wallet is Locked");
             }
 
-            PublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif) ;
+            // Remove the Signature Prefix
+            String trimmedSignature = signature.replace(SIG_PREFIX, "");
+
+            // TODO - Verify the Checksum on the WIF Key
+            // TODO - Support new style Public Keys (PUB_K1_)
             byte[] xBytes = Base58.decode(publicKeyWif.substring(3));
             xBytes = Arrays.copyOfRange(xBytes, 0, xBytes.length - 4);
 
@@ -560,12 +623,9 @@ public class JavaWallet implements Wallet {
                     paramsSpec.getG(),
                     paramsSpec.getN(),
                     paramsSpec.getH());
-            ECPoint G = paramsSpec.getG();
-            BigInteger n = paramsSpec.getN();
-            BigInteger e = new BigInteger(1, digest);
 
             boolean verified = false;
-            byte[] sigBytes = Base58.decode(signature);
+            byte[] sigBytes = Base58.decode(trimmedSignature);
             ByteBuffer sigBuffer = ByteBuffer.wrap(sigBytes);
             byte[] rBytes = new byte[32];
             byte[] sBytes = new byte[32];
@@ -580,13 +640,14 @@ public class JavaWallet implements Wallet {
             ECPublicKeyParameters params = new ECPublicKeyParameters(curve.getCurve().decodePoint(xBytes), curve);
             signer.init(false, params);
             try {
-                return signer.verifySignature(digest, r, s);
+                verified = signer.verifySignature(digest, r, s);
             } catch (NullPointerException ex) {
                 // Bouncy Castle contains a bug that can cause NPEs given specially crafted signatures. Those signatures
                 // are inherently invalid/attack sigs so we just fail them here rather than crash the thread.
                 ex.printStackTrace();
-                return false;
             }
+
+            return verified;
         }
 
         public List<String> listPublicKeys() throws WalletException {
