@@ -1,5 +1,7 @@
 package io.topiacoin.eosrpcadapter.util;
 
+import io.topiacoin.eosrpcadapter.Wallet;
+import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import org.bouncycastle.asn1.x9.X9IntegerConverter;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jce.ECNamedCurveTable;
@@ -28,6 +30,14 @@ import java.util.Arrays;
 
 public class EOSKeysUtil {
 
+    public static final String PUB_KEY_PREFIX = "PUB_K1_";
+    public static final String PRIV_KEY_PREFIX = "PRV_K1_";
+    public static final String SIG_PREFIX = "SIG_K1_";
+
+    public static final String LEGACY_PUB_KEY_PREFIX = "EOS";
+    public static final String LEGACY_PRIV_KEY_PREFIX = "";
+    public static final String LEGACY_SIG_PREFIX = "EOS";
+
     public static final String ECC_CURVE_NAME = "secp256k1";
 
     public static String privateKeyToWif(ECPrivateKey privateKey) throws NoSuchAlgorithmException {
@@ -45,7 +55,7 @@ public class EOSKeysUtil {
         return privateWif;
     }
 
-    public static String publicKeyToWif(ECPublicKey publicKey) throws  Exception {
+    public static String publicKeyToWif(ECPublicKey publicKey) throws NoSuchAlgorithmException {
         String publicWif = null;
 
         // Extract the EC Point from the Public Key.
@@ -175,7 +185,7 @@ public class EOSKeysUtil {
         return (ECPrivateKey) kf.generatePrivate(keySpec);
     }
 
-    public static ECPublicKey getPublicKeyFromPublicString(String publicKeyWif) throws Exception {
+    public static ECPublicKey getPublicKeyFromPublicString(String publicKeyWif) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeySpecException {
         // Extract encoded point and checksum from the WIF
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         byte[] rawBytes = Base58.decode(publicKeyWif.substring(3));
@@ -269,7 +279,7 @@ public class EOSKeysUtil {
         return password;
     }
 
-    public static String recoverPublicKey(String signature, byte[] digest) throws Exception {
+    public static String recoverPublicKey(String signature, byte[] digest) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeySpecException {
         ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
         ECCurve ec = ecCurve.getCurve();
         EllipticCurve ellipticCurve = EC5Util.convertCurve(ec, new byte[0]);
@@ -280,9 +290,14 @@ public class EOSKeysUtil {
 
         String publicKeyWif = null;
 
-        byte[] sigBytes = Base58.decode(signature);
+        // Remove the Signature Prefix
+        String trimmedSignature = signature.replace("SIG_K1_", "");
+
+        // TODO - Validate the Signature Checksum
+
+        byte[] sigBytes = Base58.decode(trimmedSignature);
         if ( sigBytes.length != 65 ) {
-            throw new RuntimeException("Invalid Signature Length" );
+//            throw new RuntimeException("Invalid Signature Length" );
         }
         byte recID = sigBytes[0];
         if ( (recID - 27) != (recID - 27 & 7) ) {
@@ -335,7 +350,7 @@ public class EOSKeysUtil {
         return curve.decodePoint(compEnc);
     }
 
-    public static String recoverPublicKey2(String signature, byte[] digest) throws Exception {
+    public static String recoverPublicKey2(String signature, byte[] digest) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeySpecException {
 
         ECNamedCurveParameterSpec ecCurve = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
         ECCurve ec = ecCurve.getCurve();
@@ -351,9 +366,14 @@ public class EOSKeysUtil {
 
         String publicKeyWif = null;
 
-        byte[] sigBytes = Base58.decode(signature);
+        // Remove the Signature Prefix
+        String trimmedSignature = signature.replace("SIG_K1_", "");
+
+        // TODO - Validate the Signature Checksum
+
+        byte[] sigBytes = Base58.decode(trimmedSignature);
         if ( sigBytes.length != 65 ) {
-            throw new RuntimeException("Invalid Signature Length" );
+//            throw new RuntimeException("Invalid Signature Length" );
         }
         byte i = sigBytes[0];
         if ( (i - 27) != (i - 27 & 7) ) {
@@ -425,7 +445,7 @@ public class EOSKeysUtil {
         return publicKeyWif;
     }
 
-    public static String asn1SigToWif(byte[] sigBytes, ECPublicKey publicKey, byte recID) throws Exception {
+    public static String asn1SigToWif(byte[] sigBytes, ECPublicKey publicKey, byte recID) throws NoSuchAlgorithmException {
         ByteBuffer sigbuffer = ByteBuffer.wrap(sigBytes);
         sigbuffer.get();
         sigbuffer.get();
@@ -509,4 +529,176 @@ public class EOSKeysUtil {
         return sigBytes;
     }
 
+    public ECPublicKey checkAndDecodePublicKey (final String publicKeyString) throws WalletException {
+        ECPublicKey decodedKey = null ;
+
+        try {
+            // Verify the public key string is properly formatted
+            if (!publicKeyString.startsWith(LEGACY_PUB_KEY_PREFIX) && !publicKeyString.startsWith(PUB_KEY_PREFIX)) {
+                throw new IllegalArgumentException("Unrecognized Public Key format");
+            }
+
+            // Check the encoding of the Key (e.g. EOS/WIF, PUB_K1)
+            boolean legacy = publicKeyString.startsWith(LEGACY_PUB_KEY_PREFIX);
+
+            // Remove the prefix
+            String trimmedPrivateKeyString;
+            if (legacy) {
+                trimmedPrivateKeyString = publicKeyString.replace(LEGACY_PUB_KEY_PREFIX, "");
+            } else {
+                trimmedPrivateKeyString = publicKeyString.replace(PUB_KEY_PREFIX, "");
+            }
+
+            // Decode the string and extract its various components (i.e. X, checksum)
+            byte[] decodedBytes = Base58.decode(publicKeyString);
+            byte[] checksum = Arrays.copyOfRange(decodedBytes, decodedBytes.length - 4, decodedBytes.length);
+            byte[] xBytes = Arrays.copyOfRange(decodedBytes, 0, decodedBytes.length - 4);
+
+            // Verify the checksum is correct
+            byte[] calculatedChecksum;
+            if (legacy) {
+                // RIPEMD160 Checksum
+                MessageDigest ripemd160 = MessageDigest.getInstance("RIPEMD160");
+                calculatedChecksum = ripemd160.digest(xBytes);
+            } else {
+                // SHA256x2 Checksum
+                MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+                calculatedChecksum = sha256.digest(xBytes);
+                calculatedChecksum = sha256.digest(calculatedChecksum);
+            }
+            if (!Arrays.equals(checksum, calculatedChecksum)) {
+                throw new WalletException("Public Key checksum failed");
+            }
+
+            // Construct a ECPublicKey object from the components
+            // Setup the key factory and curve specifications.
+            KeyFactory keyFactory = KeyFactory.getInstance("ECDSA", "BC");
+            ECParameterSpec ecSpec = ECNamedCurveTable.getParameterSpec(ECC_CURVE_NAME);
+
+            // Calculate the curve point and generate the public key
+            ECPoint Q = ecSpec.getCurve().decodePoint(xBytes) ;
+            ECPublicKeySpec pubSpec = new ECPublicKeySpec(Q, ecSpec);
+            decodedKey = (ECPublicKey) keyFactory.generatePublic(pubSpec);
+        } catch (NoSuchAlgorithmException e) {
+            throw new WalletException("Failed to decode Public Key", e);
+        } catch (InvalidKeySpecException e) {
+            throw new WalletException("Failed to decode Public Key", e);
+        } catch (NoSuchProviderException e) {
+            throw new WalletException("Failed to decode Public Key", e);
+        }
+
+        return decodedKey ;
+    }
+
+    public ECPrivateKey checkAndDecodePrivateKey (final String privateKeyString) {
+        ECPrivateKey decodedKey = null ;
+
+        // Verify the private key string is properly formatted
+        if ( ! privateKeyString.startsWith(LEGACY_PRIV_KEY_PREFIX) && !privateKeyString.startsWith(PRIV_KEY_PREFIX)) {
+            throw new IllegalArgumentException("Unrecognized Private Key format") ;
+        }
+
+        // Check the encoding of the Key (e.g. WIF, PRV_K1)
+        boolean legacy = !privateKeyString.startsWith(PRIV_KEY_PREFIX) ; // Legacy Prefix is blank, so we have to reverse the logic.
+
+        // Remove the prefix
+        String trimmedPrivateKeyString;
+        if (!legacy) {
+            trimmedPrivateKeyString = privateKeyString.replace(PRIV_KEY_PREFIX, "");
+        }
+
+        // Decode the string and extract its various components (i.e. S, checksum)
+
+        // Verify the checksum is correct
+
+        // Construct a ECPrivateKey object from the components
+
+        return decodedKey ;
+    }
+
+    public SignatureComponents checkAndDecodeSignature (final String signatureString) {
+        SignatureComponents components = null ;
+
+        // Verify the private key string is properly formatted
+        if ( ! signatureString.startsWith(LEGACY_SIG_PREFIX) && !signatureString.startsWith(SIG_PREFIX)) {
+            throw new IllegalArgumentException("Unrecognized Signature format") ;
+        }
+
+        // Check the encoding of the Signature (e.g. EOS/WIF, SIG_K1)
+        boolean legacy = signatureString.startsWith(LEGACY_SIG_PREFIX);
+
+        // Remove the prefix
+        String trimmedPrivateKeyString;
+        if (legacy) {
+            trimmedPrivateKeyString = signatureString.replace(LEGACY_SIG_PREFIX, "");
+        } else {
+            trimmedPrivateKeyString = signatureString.replace(SIG_PREFIX, "");
+        }
+
+        // Decode the string and extract its various components (i.e. R, S, i)
+
+        // Verify the checksum is correct
+
+        // Construct a SignatureComponents object from the components
+
+        return components;
+    }
+
+    public String encodeAndCheckPublicKey (final ECPublicKey publicKey) {
+        return encodeAndCheckPublicKey(publicKey, false);
+    }
+
+    public String encodeAndCheckPublicKey (final ECPublicKey publicKey, boolean legacy) {
+        String encodedKey = null ;
+
+        // Extract the ECPoint of the public Key (i.e. X)
+
+        // Calculate the checksum based on the format (e.g. RIPEMD160, SHA256x2)
+
+        // Assemble the components of the encoded key
+
+        // Encode the key and append the appropriate prefix.
+
+        return encodedKey;
+    }
+
+    public String encodeAndCheckPrivateKey (final ECPrivateKey privateKey) {
+        return encodeAndCheckPrivateKey(privateKey, false);
+    }
+
+    public String encodeAndCheckPrivateKey (final ECPrivateKey privateKey, boolean legacy) {
+        String encodedKey = null ;
+
+        // Extract the private ECPoint of the private Key (i.e. S)
+
+        // Calculate the checksum based on the format (e.g. SHA256x2)
+
+        // Assemble the components of the encoded key
+
+        // Encode the key and append the appropriate prefix.
+
+        return encodedKey;
+    }
+
+    public String encodeAndCheckSignature (final BigInteger r, final BigInteger s, final byte i) {
+        return encodeAndCheckSignature(r, s, i, false );
+    }
+
+    public String encodeAndCheckSignature (final BigInteger r, final BigInteger s, final byte i, boolean legacy) {
+        String encodedSig = null ;
+
+        // Calculate the checksum based on the format (e.g. RIPEMD160, SHA256x2)
+
+        // Assemble the components of the encoded key
+
+        // Encode the key and append the appropriate prefix.
+
+        return encodedSig;
+    }
+
+    public static class SignatureComponents {
+        public BigInteger r;
+        public BigInteger s;
+        public byte i;
+    }
 }
