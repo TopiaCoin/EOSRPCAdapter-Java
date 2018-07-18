@@ -45,7 +45,7 @@ public class RPCWallet implements Wallet {
 
         try {
             ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
-            newKeyWif = EOSKeysUtil.privateKeyToWif(newKey);
+            newKeyWif = EOSKeysUtil.encodeAndCheckPrivateKey(newKey);
         } catch (NoSuchProviderException e) {
             throw new WalletException("Unable to load the required Security Provider", e) ;
         } catch (NoSuchAlgorithmException e) {

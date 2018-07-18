@@ -78,7 +78,7 @@ public class JavaWallet implements Wallet {
 
         try {
             ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
-            newKeyWif = EOSKeysUtil.privateKeyToWif(newKey);
+            newKeyWif = EOSKeysUtil.encodeAndCheckPrivateKey(newKey);
         } catch (NoSuchProviderException e) {
             throw new WalletException("Unable to load the required Security Provider", e) ;
         } catch (NoSuchAlgorithmException e) {
@@ -389,11 +389,11 @@ public class JavaWallet implements Wallet {
 
     static class EOSWallet {
         public static final String SIG_PREFIX = "SIG_K1_";
-        public long _lockTimeout;
-        public String _wallet_filename;
-        public Map<String,String> _keys;
-        public byte[] _checksum;
-        public WalletData _wallet;  // -> Contains cipher_keys
+        private long _lockTimeout;
+        private String _wallet_filename;
+        private Map<String,String> _keys;
+        private byte[] _checksum;
+        private WalletData _wallet;  // -> Contains cipher_keys
 
         public static EOSWallet createWallet(String name, String password) throws NoSuchAlgorithmException, IOException {
             EOSWallet wallet = new EOSWallet();
@@ -490,8 +490,8 @@ public class JavaWallet implements Wallet {
             ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPrivateKey(privateKey);
 
             // Obtain the public and private keys in WIF format
-            publicKeyWif = EOSKeysUtil.publicKeyToWif(publicKey);
-            privateKeyWif = EOSKeysUtil.privateKeyToWif(privateKey);
+            publicKeyWif = EOSKeysUtil.encodeAndCheckPublicKey(publicKey);
+            privateKeyWif = EOSKeysUtil.encodeAndCheckPrivateKey(privateKey);
 
             // Store the keys in the map
             _keys.put(publicKeyWif, privateKeyWif);
@@ -511,7 +511,7 @@ public class JavaWallet implements Wallet {
             try {
                 // Obtain the Public Key for the given private key and convert it to WIF format
                 ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPrivateString(privateKeyWif);
-                String publicKeyWif = EOSKeysUtil.publicKeyToWif(publicKey);
+                String publicKeyWif = EOSKeysUtil.encodeAndCheckPublicKey(publicKey);
 
                 // Store the keys in the map
                 _keys.put(publicKeyWif, privateKeyWif);
@@ -560,32 +560,14 @@ public class JavaWallet implements Wallet {
                 signer.init(true, privKey);
 
                 BigInteger[] components;
-                do {
-                    components = signer.generateSignature(digest);
-                } while ( components[0].toByteArray().length != 32 && components[1].toByteArray().length!= 32);
+                components = signer.generateSignature(digest);
 
                 BigInteger r = components[0];
                 BigInteger s = components[1];
 
-                // Compile r and s into a signature string along with the calculated i.
-                byte[] rBytes = r.toByteArray();
-                byte[] sBytes = s.toByteArray();
-                ByteBuffer asn1Buffer = ByteBuffer.allocate(1024);
-                asn1Buffer.put((byte) 0x30);
-                asn1Buffer.put((byte) (rBytes.length + sBytes.length + 4));
-                asn1Buffer.put((byte) 0x02);
-                asn1Buffer.put((byte) rBytes.length);
-                asn1Buffer.put(rBytes);
-                asn1Buffer.put((byte) 0x02);
-                asn1Buffer.put((byte) sBytes.length);
-                asn1Buffer.put(sBytes);
-                asn1Buffer.flip();
-                byte[] sigBytes = new byte[asn1Buffer.remaining()];
-                asn1Buffer.get(sigBytes);
-
                 int i = 0;
                 while (i < 4) {
-                    String testSig = EOSKeysUtil.asn1SigToWif(sigBytes, publicKey, (byte) i++);
+                    String testSig = EOSKeysUtil.encodeAndCheckSignature(r, s, (byte) i++);
                     String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
                     if (publicKeyWif.equals(recoveredKey)) {
                         signature = testSig;
@@ -600,7 +582,7 @@ public class JavaWallet implements Wallet {
                 throw new WalletException("Failed to Sign Message", e) ;
             }
 
-            return SIG_PREFIX + signature;
+            return signature;
         }
 
 
@@ -609,11 +591,8 @@ public class JavaWallet implements Wallet {
                 throw new WalletException("Wallet is Locked");
             }
 
-            // Remove the Signature Prefix
-            String trimmedSignature = signature.replace(SIG_PREFIX, "");
+            EOSKeysUtil.SignatureComponents signatureComponents = EOSKeysUtil.checkAndDecodeSignature(signature);
 
-            // TODO - Verify the Checksum on the WIF Key
-            // TODO - Support new style Public Keys (PUB_K1_)
             byte[] xBytes = Base58.decode(publicKeyWif.substring(3));
             xBytes = Arrays.copyOfRange(xBytes, 0, xBytes.length - 4);
 
@@ -625,16 +604,16 @@ public class JavaWallet implements Wallet {
                     paramsSpec.getH());
 
             boolean verified = false;
-            byte[] sigBytes = Base58.decode(trimmedSignature);
-            ByteBuffer sigBuffer = ByteBuffer.wrap(sigBytes);
-            byte[] rBytes = new byte[32];
-            byte[] sBytes = new byte[32];
-            sigBuffer.get() ;
-            sigBuffer.get(rBytes);
-            sigBuffer.get(sBytes);
+//            byte[] sigBytes = Base58.decode(trimmedSignature);
+//            ByteBuffer sigBuffer = ByteBuffer.wrap(sigBytes);
+//            byte[] rBytes = new byte[32];
+//            byte[] sBytes = new byte[32];
+//            sigBuffer.get() ;
+//            sigBuffer.get(rBytes);
+//            sigBuffer.get(sBytes);
 
-            BigInteger r = new BigInteger(1, rBytes) ;
-            BigInteger s = new BigInteger(1, sBytes) ;
+            BigInteger r = signatureComponents.r;
+            BigInteger s = signatureComponents.s;
 
             ECDSASigner signer = new ECDSASigner();
             ECPublicKeyParameters params = new ECPublicKeyParameters(curve.getCurve().decodePoint(xBytes), curve);
@@ -714,8 +693,15 @@ public class JavaWallet implements Wallet {
             buffer.put(_checksum);
             buffer.put((byte)_keys.size());
             for ( Map.Entry<String, String> entry : _keys.entrySet() ) {
-                byte[] publicBytes = EOSKeysUtil.keyBytesFromPublicWif(entry.getKey());
-                byte[] privateBytes = EOSKeysUtil.keyBytesFromPrivateWif(entry.getValue());
+                byte[] publicBytes = new byte[0];
+                byte[] privateBytes = new byte[0];
+                try {
+                    publicBytes = EOSKeysUtil.checkAndDecodePublicKeyBytes(entry.getKey());
+                    privateBytes = EOSKeysUtil.checkAndDecodePrivateKeyBytes(entry.getValue());
+                } catch (WalletException e) {
+                    e.printStackTrace();
+                    // TODO - Handle this Exception
+                }
                 buffer.put(NULL_BYTE);
                 buffer.put(publicBytes);
                 buffer.put(NULL_BYTE);
@@ -744,8 +730,15 @@ public class JavaWallet implements Wallet {
                 decryptedByteBuffer.get(pubKey) ;
                 decryptedByteBuffer.get();
                 decryptedByteBuffer.get(privKey);
-                String wifPubKey = EOSKeysUtil.keyBytesToPublicWif(pubKey);
-                String wifPrivKey = EOSKeysUtil.keyBytesToPrivateWif(privKey);
+                String wifPubKey = null;
+                String wifPrivKey = null;
+                try {
+                    wifPubKey = EOSKeysUtil.encodeAndCheckPublicKeyBytes(pubKey, true);
+                    wifPrivKey = EOSKeysUtil.encodeAndCheckPrivateKeyBytes(privKey, true);
+                } catch (WalletException e) {
+                    e.printStackTrace();
+                    // TODO - Handle this Exception
+                }
 
                 tempWallet._keys.put(wifPubKey, wifPrivKey);
             }
