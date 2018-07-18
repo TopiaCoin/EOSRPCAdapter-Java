@@ -1,15 +1,12 @@
 package io.topiacoin.eosrpcadapter;
 
 import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
-import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.security.MessageDigest;
-import java.security.PublicKey;
 import java.security.Security;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
-import java.security.spec.ECPublicKeySpec;
 import java.util.List;
 
 public class EOSWalletSample {
@@ -40,15 +37,15 @@ public class EOSWalletSample {
                 String privateKey = keyPair.get(1);
 
                 // Get the Private Key from the Private Key WIF String
-                ECPrivateKey ecPrivateKey = EOSKeysUtil.getPrivateKeyFromPrivateString(privateKey);
+                ECPrivateKey ecPrivateKey = EOSKeysUtil.checkAndDecodePrivateKey(privateKey);
                 System.out.println("Private Key  : " + ecPrivateKey);
 
                 // Get the Public Key from the Public Key WIF String
-                ECPublicKey ecPublicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKey);
+                ECPublicKey ecPublicKey = EOSKeysUtil.checkAndDecodePublicKey(publicKey);
                 System.out.println("From Public  : " + ecPublicKey);
 
                 // Get the Public Key from the *Private* Key WIF String
-                ecPublicKey = EOSKeysUtil.getPublicKeyFromPrivateString(privateKey);
+                ecPublicKey = EOSKeysUtil.checkAndDecodePublicKeyFromPrivateKeyString(privateKey);
                 System.out.println("From Private : " + ecPublicKey);
             }
 
@@ -134,7 +131,7 @@ public class EOSWalletSample {
             String pubKeyString = "EOS7RCvxemGXsQHmo9JZZXNvjbKY2PL5WZV98Vt9xSNy6q68eB9k1";
             String pubKeyString2 = "PUB_K1_7RCvxemGXsQHmo9JZZXNvjbKY2PL5WZV98Vt9xSNy6q68de18Q";
 
-            ECPublicKey pubKey1 = EOSKeysUtil.getPublicKeyFromPublicString(pubKeyString) ;
+            ECPublicKey pubKey1 = EOSKeysUtil.checkAndDecodePublicKey(pubKeyString) ;
             ECPublicKey pubKey2 = EOSKeysUtil.checkAndDecodePublicKey(pubKeyString);
             ECPublicKey pubKey3 = EOSKeysUtil.checkAndDecodePublicKey(pubKeyString2);
 
@@ -147,7 +144,7 @@ public class EOSWalletSample {
             String privKeyString = "5HzsKHxUK6s75jv66j5MNNLkLrWQt6Ng4MYWhbmfKwqUHk4sNgy" ;
             String privKeyString2 = "PRV_K1_5HzsKHxUK6s75jv66j5MNNLkLrWQt6Ng4MYWhbmfKwqUHk4sNgy" ;
 
-            ECPrivateKey privKey1 = EOSKeysUtil.getPrivateKeyFromPrivateString(privKeyString) ;
+            ECPrivateKey privKey1 = EOSKeysUtil.checkAndDecodePrivateKey(privKeyString) ;
             ECPrivateKey privKey2 = EOSKeysUtil.checkAndDecodePrivateKey(privKeyString);
             ECPrivateKey privKey3 = EOSKeysUtil.checkAndDecodePrivateKey(privKeyString2);
 
@@ -196,7 +193,7 @@ public class EOSWalletSample {
             String privKeyString = "5HzsKHxUK6s75jv66j5MNNLkLrWQt6Ng4MYWhbmfKwqUHk4sNgy" ;
             String privKeyString2 = "PRV_K1_5HzsKHxUK6s75jv66j5MNNLkLrWQt6Ng4MYWhbmfKwqUHk4sNgy" ;
 
-            ECPrivateKey privKey1 = EOSKeysUtil.getPrivateKeyFromPrivateString(privKeyString) ;
+            ECPrivateKey privKey1 = EOSKeysUtil.checkAndDecodePrivateKey(privKeyString) ;
             ECPrivateKey privKey2 = EOSKeysUtil.checkAndDecodePrivateKey(privKeyString);
 
             String legacyToLegacyPrivKeyString = EOSKeysUtil.encodeAndCheckPrivateKey(privKey1, true);
@@ -232,10 +229,10 @@ public class EOSWalletSample {
             System.out.println ( "Signature 1: " + signatureComponents1);
             System.out.println ( "Signature 2: " + signatureComponents2);
 
-            System.out.println ( "L2L Priv Key    : " + legacyToLegacySignatureString);
-            System.out.println ( "N2N Priv Key    : " + newToNewSignatureString);
-            System.out.println ( "L2N Priv Key    : " + legacyToNewSignatureString);
-            System.out.println ( "N2L Priv Key    : " + newToLegacySignatureString);
+            System.out.println ( "L2L Signature    : " + legacyToLegacySignatureString);
+            System.out.println ( "N2N Signature    : " + newToNewSignatureString);
+            System.out.println ( "L2N Signature    : " + legacyToNewSignatureString);
+            System.out.println ( "N2L Signature    : " + newToLegacySignatureString);
 
         }
 

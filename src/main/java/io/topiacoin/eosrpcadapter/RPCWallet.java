@@ -3,6 +3,7 @@ package io.topiacoin.eosrpcadapter;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
+import io.topiacoin.eosrpcadapter.exceptions.KeyException;
 import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 import io.topiacoin.eosrpcadapter.messages.Keys;
@@ -46,11 +47,7 @@ public class RPCWallet implements Wallet {
         try {
             ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
             newKeyWif = EOSKeysUtil.encodeAndCheckPrivateKey(newKey);
-        } catch (NoSuchProviderException e) {
-            throw new WalletException("Unable to load the required Security Provider", e) ;
-        } catch (NoSuchAlgorithmException e) {
-            throw new WalletException("Unable to find the required encryption algorithms", e) ;
-        } catch (InvalidKeySpecException e) {
+        } catch (KeyException e) {
             throw new WalletException("Unable to create new key", e);
         }
 

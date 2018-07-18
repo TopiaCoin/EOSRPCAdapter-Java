@@ -1,6 +1,8 @@
 package io.topiacoin.eosrpcadapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.topiacoin.eosrpcadapter.exceptions.KeyException;
+import io.topiacoin.eosrpcadapter.exceptions.SignatureException;
 import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
@@ -20,7 +22,6 @@ import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
-import org.bouncycastle.math.ec.ECPoint;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -41,7 +42,6 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.PublicKey;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -61,7 +61,7 @@ public class JavaWallet implements Wallet {
     private final Log _log = LogFactory.getLog(this.getClass());
 
     private static final String DEFAULT_WALLET_NAME = "default";
-    private static final int DEFAULT_WALLET_TIMEOUT = 900000; // 15 minutes
+    private static final int DEFAULT_WALLET_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 
     private final Timer _lockTimer = new Timer("walletLockTimer");
     private final Map<String, TimerTask> _walletLockTasks= new HashMap<String, TimerTask>();
@@ -79,11 +79,7 @@ public class JavaWallet implements Wallet {
         try {
             ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
             newKeyWif = EOSKeysUtil.encodeAndCheckPrivateKey(newKey);
-        } catch (NoSuchProviderException e) {
-            throw new WalletException("Unable to load the required Security Provider", e) ;
-        } catch (NoSuchAlgorithmException e) {
-            throw new WalletException("Unable to find the required encryption algorithms", e) ;
-        } catch (InvalidKeySpecException e) {
+        } catch (KeyException e) {
             throw new WalletException("Unable to create new key", e);
         }
 
@@ -128,6 +124,8 @@ public class JavaWallet implements Wallet {
         } catch (NoSuchAlgorithmException e) {
             throw new WalletException("Failed to create new wallet: " + walletName, e);
         } catch ( IOException e) {
+            throw new WalletException("Failed to create new wallet: " + walletName, e);
+        } catch (KeyException e) {
             throw new WalletException("Failed to create new wallet: " + walletName, e);
         }
 
@@ -268,6 +266,10 @@ public class JavaWallet implements Wallet {
             imported = true;
         } catch ( WalletException e ) {
             _log.warn ( "Failed to import key to specified wallet: " + walletName, e) ;
+        } catch (KeyException e) {
+            _log.warn ( "Failed to import key to specified wallet: " + walletName, e) ;
+        } catch (IOException e) {
+            _log.warn ( "Failed to import key to specified wallet: " + walletName, e) ;
         }
 
         return imported;
@@ -339,6 +341,10 @@ public class JavaWallet implements Wallet {
         } catch (ParseException e) {
             throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
         } catch (NoSuchAlgorithmException e) {
+            throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
+        } catch (KeyException e) {
+            throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
+        } catch (SignatureException e) {
             throw new WalletException("Unable to sign Transaction: Invalid Chain ID", e);
         }
 
@@ -478,7 +484,7 @@ public class JavaWallet implements Wallet {
             return _checksum == null;
         }
 
-        public String createKey() throws Exception {
+        public String createKey() throws WalletException, KeyException, IOException {
             if ( isLocked() ) {
                 throw new WalletException("Wallet is Locked") ;
             }
@@ -503,14 +509,13 @@ public class JavaWallet implements Wallet {
             return publicKeyWif;
         }
 
-        public String importKey(String privateKeyWif) throws WalletException {
+        public String importKey(String privateKeyWif) throws WalletException, KeyException, IOException {
             if ( isLocked() ) {
                 throw new WalletException("Wallet is Locked") ;
             }
 
-            try {
                 // Obtain the Public Key for the given private key and convert it to WIF format
-                ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPrivateString(privateKeyWif);
+                ECPublicKey publicKey = EOSKeysUtil.checkAndDecodePublicKeyFromPrivateKeyString(privateKeyWif);
                 String publicKeyWif = EOSKeysUtil.encodeAndCheckPublicKey(publicKey);
 
                 // Store the keys in the map
@@ -521,12 +526,9 @@ public class JavaWallet implements Wallet {
                 saveWallet();
 
                 return publicKeyWif;
-            } catch ( Exception e ) {
-                throw new WalletException("Failed to import the specified Key", e);
-            }
         }
 
-        public void removeKey(String publicKeyWif) throws Exception {
+        public void removeKey(String publicKeyWif) throws WalletException, IOException {
             if ( isLocked() ) {
                 throw new WalletException("Wallet is Locked") ;
             }
@@ -539,54 +541,45 @@ public class JavaWallet implements Wallet {
             saveWallet();
         }
 
-        public String signDigest(byte[] digest, String publicKeyWif) throws WalletException {
+        public String signDigest(byte[] digest, String publicKeyWif) throws WalletException, KeyException, SignatureException {
             String signature = null;
 
-            if ( !_keys.containsKey(publicKeyWif ) ) {
-                return null ;
+            if (!_keys.containsKey(publicKeyWif)) {
+                return null;
             }
 
-            try {
-                String privateKeyWif = _keys.get(publicKeyWif);
-                ECPrivateKey privateKey = EOSKeysUtil.getPrivateKeyFromPrivateString(privateKeyWif);
-                ECPublicKey publicKey = EOSKeysUtil.getPublicKeyFromPublicString(publicKeyWif);
+            String privateKeyWif = _keys.get(publicKeyWif);
+            ECPrivateKey privateKey = EOSKeysUtil.checkAndDecodePrivateKey(privateKeyWif);
 
-                ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
-                ECDomainParameters curve = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
-                        params.getH());
+            ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
+            ECDomainParameters curve = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
+                    params.getH());
 
-                ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
-                ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(privateKey.getS(), curve);
-                signer.init(true, privKey);
+            ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+            ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(privateKey.getS(), curve);
+            signer.init(true, privKey);
 
-                BigInteger[] components;
-                components = signer.generateSignature(digest);
+            BigInteger[] components;
+            components = signer.generateSignature(digest);
 
-                BigInteger r = components[0];
-                BigInteger s = components[1];
+            BigInteger r = components[0];
+            BigInteger s = components[1];
 
-                int i = 0;
-                while (i < 4) {
-                    String testSig = EOSKeysUtil.encodeAndCheckSignature(r, s, (byte) i++);
-                    String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
-                    if (publicKeyWif.equals(recoveredKey)) {
-                        signature = testSig;
-                        break;
-                    }
+            int i = 0;
+            while (i < 4) {
+                String testSig = EOSKeysUtil.encodeAndCheckSignature(r, s, (byte) i++);
+                String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
+                if (publicKeyWif.equals(recoveredKey)) {
+                    signature = testSig;
+                    break;
                 }
-            } catch (NoSuchAlgorithmException e) {
-                throw new WalletException("Failed to Sign Message", e) ;
-            } catch (NoSuchProviderException e) {
-                throw new WalletException("Failed to Sign Message", e) ;
-            } catch (InvalidKeySpecException e) {
-                throw new WalletException("Failed to Sign Message", e) ;
             }
 
             return signature;
         }
 
 
-        public boolean verifySignature(byte[] digest, String signature, String publicKeyWif) throws Exception {
+        public boolean verifySignature(byte[] digest, String signature, String publicKeyWif) throws WalletException, KeyException {
             if (isLocked()) {
                 throw new WalletException("Wallet is Locked");
             }
@@ -604,13 +597,6 @@ public class JavaWallet implements Wallet {
                     paramsSpec.getH());
 
             boolean verified = false;
-//            byte[] sigBytes = Base58.decode(trimmedSignature);
-//            ByteBuffer sigBuffer = ByteBuffer.wrap(sigBytes);
-//            byte[] rBytes = new byte[32];
-//            byte[] sBytes = new byte[32];
-//            sigBuffer.get() ;
-//            sigBuffer.get(rBytes);
-//            sigBuffer.get(sBytes);
 
             BigInteger r = signatureComponents.r;
             BigInteger s = signatureComponents.s;
@@ -687,7 +673,7 @@ public class JavaWallet implements Wallet {
             }
         }
 
-        private byte[] packWallet() {
+        private byte[] packWallet() throws IOException {
             byte NULL_BYTE = (byte) 0x00;
             ByteBuffer buffer = ByteBuffer.allocate(1024);
             buffer.put(_checksum);
@@ -698,9 +684,8 @@ public class JavaWallet implements Wallet {
                 try {
                     publicBytes = EOSKeysUtil.checkAndDecodePublicKeyBytes(entry.getKey());
                     privateBytes = EOSKeysUtil.checkAndDecodePrivateKeyBytes(entry.getValue());
-                } catch (WalletException e) {
-                    e.printStackTrace();
-                    // TODO - Handle this Exception
+                } catch (KeyException e) {
+                    throw new IOException("Exception packing the wallet", e);
                 }
                 buffer.put(NULL_BYTE);
                 buffer.put(publicBytes);
@@ -715,7 +700,7 @@ public class JavaWallet implements Wallet {
             return packedBytes ;
         }
 
-        private EOSWallet unpackWallet(byte[] decryptedWalletBytes) throws NoSuchAlgorithmException {
+        private EOSWallet unpackWallet(byte[] decryptedWalletBytes) throws IOException {
             EOSWallet tempWallet = new EOSWallet();
             tempWallet._keys = new TreeMap<String, String>();
             ByteBuffer decryptedByteBuffer = ByteBuffer.wrap(decryptedWalletBytes);
@@ -735,9 +720,8 @@ public class JavaWallet implements Wallet {
                 try {
                     wifPubKey = EOSKeysUtil.encodeAndCheckPublicKeyBytes(pubKey, true);
                     wifPrivKey = EOSKeysUtil.encodeAndCheckPrivateKeyBytes(privKey, true);
-                } catch (WalletException e) {
-                    e.printStackTrace();
-                    // TODO - Handle this Exception
+                } catch (KeyException e) {
+                    throw new IOException("Exception unpacking the wallet", e);
                 }
 
                 tempWallet._keys.put(wifPubKey, wifPrivKey);
