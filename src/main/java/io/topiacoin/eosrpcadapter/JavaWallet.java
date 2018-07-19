@@ -312,18 +312,8 @@ public class JavaWallet implements Wallet {
         List<String> remainingKeys = new ArrayList<String>(keys);
         List<String> signatureList = new ArrayList<String>();
 
-        EOSByteWriter eosByteWriter = new EOSByteWriter(10240);
-        byte[] chainIDBytes = null;
         try {
-            chainIDBytes = Hex.decodeHex(chainID.toCharArray());
-            eosByteWriter.putBytes(chainIDBytes);
-            transaction.pack(eosByteWriter);
-
-            byte[] packedBytes = eosByteWriter.toBytes();
-            byte[] digest = null;
-
-            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-            digest = sha256.digest(packedBytes);
+            byte[] digest = getSigDigest(transaction, chainID);
 
             for ( EOSWallet wallet : _eosWallets.values() ) {
                 Iterator<String> keyItr = remainingKeys.iterator();
@@ -351,6 +341,26 @@ public class JavaWallet implements Wallet {
         SignedTransaction signedTransaction = new SignedTransaction(transaction, signatureList);
 
         return signedTransaction;
+    }
+
+    public byte[] getSigDigest(Transaction transaction, String chainID) throws DecoderException, ParseException, NoSuchAlgorithmException {
+        EOSByteWriter eosByteWriter = new EOSByteWriter(10240);
+        byte[] chainIDBytes = Hex.decodeHex(chainID.toCharArray());
+
+        eosByteWriter.putBytes(chainIDBytes);
+        transaction.pack(eosByteWriter);
+        eosByteWriter.putBytes(new byte[32]);
+
+        byte[] packedBytes = eosByteWriter.toBytes();
+
+        System.out.println ( "Data to Sign: " + Hex.encodeHexString(packedBytes));
+
+        // Digest the packed bytes
+        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+        byte[] digest = sha256.digest(packedBytes);
+
+        System.out.println ( "Digest : " + Hex.encodeHexString(digest));
+        return digest;
     }
 
     @Override

@@ -66,4 +66,12 @@ public class EOSException extends Exception {
     public ErrorResponse getDetails() {
         return _details;
     }
+
+    @Override
+    public String toString() {
+        return "EOSException{" +
+                getMessage() +
+                ", _details=" + _details +
+                '}';
+    }
 }
