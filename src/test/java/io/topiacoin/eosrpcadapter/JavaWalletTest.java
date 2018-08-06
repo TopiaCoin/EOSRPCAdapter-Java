@@ -150,13 +150,32 @@ public class JavaWalletTest extends AbstractWalletTests {
         EOSByteWriter eosByteWriter = new EOSByteWriter(10240);
         byte[] chainIDBytes = Hex.decodeHex(chainID.toCharArray());
 
+        // Reverse the chain ID Bytes to Little Endian.
+        byte[] temp = new byte[chainIDBytes.length] ;
+        for ( int i = 0 ; i < chainIDBytes.length ; i++ ){
+            temp[temp.length - i - 1] = chainIDBytes[i] ;
+        }
+//        chainIDBytes = temp;
+
         transaction.pack(eosByteWriter);
         byte[] packedTxBytes = eosByteWriter.toBytes();
 
         ByteBuffer buffer = ByteBuffer.allocate(10240) ;
         buffer.put(chainIDBytes) ;
         buffer.put(packedTxBytes);
-        buffer.put(new byte[32]);
+
+        // Context Free Data
+        if ( transaction.context_free_data.size() > 0 ) {
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            for (String str : transaction.context_free_data) {
+                sha256.update(str.getBytes());
+            }
+            byte[] cfdHash = sha256.digest();
+            buffer.put(cfdHash); // CFD Hash
+        } else {
+            buffer.put(new byte[32]);
+        }
+
         buffer.flip();
 
         byte[] data = new byte[buffer.remaining()] ;

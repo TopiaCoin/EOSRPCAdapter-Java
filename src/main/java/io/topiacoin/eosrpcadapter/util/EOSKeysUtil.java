@@ -717,6 +717,8 @@ public class EOSKeysUtil {
             byte[] decodedBytes = new byte[buffer.remaining()];
             buffer.get(decodedBytes);
 
+            isCanonical(decodedBytes);
+
             // Encode the key and append the appropriate prefix.
             encodedSig = (legacy ? LEGACY_SIG_PREFIX : SIG_PREFIX);
             encodedSig += Base58.encode(decodedBytes);
@@ -725,6 +727,28 @@ public class EOSKeysUtil {
         }
 
         return encodedSig;
+    }
+
+    public static boolean isCanonical(byte[] decodedBytes) {
+        boolean canonical = ((decodedBytes[1] & 0x80) == 0);
+        canonical &= !(decodedBytes[1] == 0 && ((decodedBytes[2] & 0x80) == 0));
+        canonical &= ((decodedBytes[33] & 0x80) == 0);
+        canonical &= !(decodedBytes[33] == 0 && ((decodedBytes[34] & 0x80) == 0));
+
+        return canonical;
+    }
+
+    public static boolean isCanonical (BigInteger r, BigInteger s) {
+        byte[] rBytes = r.toByteArray();
+        byte[] sBytes = s.toByteArray();
+
+        boolean canonical = (rBytes.length == 32) && (sBytes.length == 32) ;
+        canonical &= ((rBytes[0] & 0x80) == 0);
+        canonical &= !(rBytes[0] == 0 && ((rBytes[1] & 0x80) == 0));
+        canonical &= ((sBytes[0] & 0x80) == 0);
+        canonical &= !(sBytes[0] == 0 && ((sBytes[1] & 0x80) == 0));
+
+        return canonical;
     }
 
     /**

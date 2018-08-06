@@ -10,6 +10,7 @@ import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.util.Base58;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
 import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
+import io.topiacoin.eosrpcadapter.util.HMacDSAKCalculator2;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.logging.Log;
@@ -347,9 +348,27 @@ public class JavaWallet implements Wallet {
         EOSByteWriter eosByteWriter = new EOSByteWriter(10240);
         byte[] chainIDBytes = Hex.decodeHex(chainID.toCharArray());
 
-        eosByteWriter.putBytes(chainIDBytes);
+        // Reverse the chain ID Bytes to Little Endian.
+        byte[] temp = new byte[chainIDBytes.length] ;
+        for ( int i = 0 ; i < chainIDBytes.length ; i++ ){
+            temp[temp.length - i - 1] = chainIDBytes[i] ;
+        }
+//        chainIDBytes = temp;
+
+        eosByteWriter.putBytes(chainIDBytes, chainIDBytes.length);
         transaction.pack(eosByteWriter);
-        eosByteWriter.putBytes(new byte[32]);
+
+        // Context Free Data
+        if ( transaction.context_free_data.size() > 0 ) {
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            for (String str : transaction.context_free_data) {
+                sha256.update(str.getBytes());
+            }
+            byte[] cfdHash = sha256.digest();
+            eosByteWriter.putBytes(cfdHash, cfdHash.length); // CFD Hash
+        } else {
+            eosByteWriter.putBytes(new byte[32], 32);
+        }
 
         byte[] packedBytes = eosByteWriter.toBytes();
 
@@ -565,15 +584,20 @@ public class JavaWallet implements Wallet {
             ECDomainParameters curve = new ECDomainParameters(params.getCurve(), params.getG(), params.getN(),
                     params.getH());
 
-            ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest()));
+            ECDSASigner signer = new ECDSASigner(new HMacDSAKCalculator2(new SHA256Digest()));
             ECPrivateKeyParameters privKey = new ECPrivateKeyParameters(privateKey.getS(), curve);
             signer.init(true, privKey);
 
-            BigInteger[] components;
-            components = signer.generateSignature(digest);
+            BigInteger r;
+            BigInteger s;
+            do {
+                BigInteger[] components;
+                components = signer.generateSignature(digest);
 
-            BigInteger r = components[0];
-            BigInteger s = components[1];
+                r = components[0];
+                s = components[1];
+//                System.out.println( "R : "+ r) ;
+//                System.out.println( "S : "+ s) ;
 
             int i = 0;
             while (i < 4) {
@@ -584,6 +608,7 @@ public class JavaWallet implements Wallet {
                     break;
                 }
             }
+            } while ( !EOSKeysUtil.isCanonical(r, s) ) ;
 
             return signature;
         }
