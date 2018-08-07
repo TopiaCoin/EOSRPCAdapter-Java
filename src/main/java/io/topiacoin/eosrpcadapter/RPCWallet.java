@@ -3,11 +3,13 @@ package io.topiacoin.eosrpcadapter;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
+import io.topiacoin.eosrpcadapter.exceptions.KeyException;
 import io.topiacoin.eosrpcadapter.exceptions.WalletException;
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
 import io.topiacoin.eosrpcadapter.messages.Keys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
+import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -15,6 +17,10 @@ import org.apache.commons.logging.LogFactory;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.interfaces.ECPrivateKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,10 +42,16 @@ public class RPCWallet implements Wallet {
 
     @Override
     public String createKey() throws WalletException {
+        String newKeyWif = null ;
 
-        EOSKey eosKey = EOSKey.randomKey();
+        try {
+            ECPrivateKey newKey = EOSKeysUtil.generateECPrivateKey();
+            newKeyWif = EOSKeysUtil.encodeAndCheckPrivateKey(newKey);
+        } catch (KeyException e) {
+            throw new WalletException("Unable to create new key", e);
+        }
 
-        return eosKey.toWif();
+        return newKeyWif;
     }
 
     @Override
@@ -162,14 +174,14 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean unlock(String name,
+    public boolean unlock(String walletName,
                           String password) throws WalletException {
         boolean unlocked = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/unlock");
 
-            String request = "[\"" + name + "\",\"" + password + "\"]";
+            String request = "[\"" + walletName + "\",\"" + password + "\"]";
 
             _log.debug("Unlock Request: " + request);
 
@@ -232,7 +244,7 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public List<String> getPublicKeys() throws WalletException {
+    public List<String> getPublicKeys(String walletName) throws WalletException {
         List<String> publicKeys = null;
 
         try {
@@ -260,14 +272,14 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public Keys listKeys(String name,
+    public Keys listKeys(String walletName,
                          String password) throws WalletException {
         Keys keys = null;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/list_keys");
 
-            String request = "[\"" + name + "\",\"" + password + "\"]";
+            String request = "[\"" + walletName + "\",\"" + password + "\"]";
 
             _log.debug("List Keys Request: " + request);
 
@@ -299,14 +311,14 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean importKey(String name,
+    public boolean importKey(String walletName,
                              String key) throws WalletException {
         boolean imported = false;
 
         try {
             URL getInfoURL = new URL(walletURL, "/v1/wallet/import_key");
 
-            String request = "[\"" + name + "\",\"" + key + "\"]";
+            String request = "[\"" + walletName + "\",\"" + key + "\"]";
 
             _log.debug("Import Key Request: " + request);
 
@@ -332,7 +344,7 @@ public class RPCWallet implements Wallet {
     }
 
     @Override
-    public boolean setTimeout(int timeoutSecs) throws WalletException {
+    public boolean setTimeout(String walletName, int timeoutSecs) throws WalletException {
         boolean timeoutSet = false;
 
         try {

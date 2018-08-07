@@ -1,0 +1,64 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <!--
+    sha512-HCSw4GhpVw/3DS2n9Hdq7hVAw3nheZzYddAJsKEK7wk57LsfnI9oNHHNHzG+e+BWqWKxKPCM+XMxBTV+TE2QYw== lib/eosjs-ecc.js
+    sha512-5esVQ4sQT8XLWek5KUEIQbFfxu2EZdet8DNDkIdchp4Y1e0b+xkMozwUdFii5bJa3Zk/vgr1ZP235Uf9ULCrkA== lib/eosjs-ecc.min.js
+    sha512-ui5uBolbOxJDpdWZ8f9aoMxF3RqY9KOZC6eOhTg+V2IT4tO8FzagpCPCOja1wFrcn9Nw7oX4pFqmeUynv+4aHw== lib/eosjs-ecc.min.js.map
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/eosjs-ecc@4.0.2/lib/eosjs-ecc.js"></script>
+    <!--integrity="sha512-5esVQ4sQT8XLWek5KUEIQbFfxu2EZdet8DNDkIdchp4Y1e0b+xkMozwUdFii5bJa3Zk/vgr1ZP235Uf9ULCrkA=="
+    crossorigin="anonymous">-->
+
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <!--integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>-->
+
+</head>
+<body>
+<h3>Recover Public Key</h3><br/>
+<label>Signature: </label><input type="text" id="sig" disabled /><br/>
+<label>     Data: </label><input type="text" id="dat" disabled /><br/>
+<input type="button" id="go" value="Recover Public Key" disabled /><br/><br/>
+<label>   Public Key: </label><input type="text" id="out" disabled /><br/><br/>
+<h3>Sign Data</h3><br/>
+<label>Private Key: </label><input type="text" id="privkey" disabled /><br/>
+<label>     Data: </label><input type="text" id="dat2" disabled /><br/>
+<input type="button" id="go2" value="Sign Data" disabled /><br/><br/>
+<label>   Signature: </label><input type="text" id="out2" disabled />
+<script type="text/javascript">
+        $('document').ready(function(){
+            eosjs_ecc.initialize().then(function(){
+                $('#sig').removeAttr('disabled');
+                $('#dat').removeAttr('disabled');
+                $('#go').removeAttr('disabled');
+                $('#out').removeAttr('disabled');
+                $('#privkey').removeAttr('disabled');
+                $('#dat2').removeAttr('disabled');
+                $('#go2').removeAttr('disabled');
+                $('#out2').removeAttr('disabled');
+            }).catch((reason) => {window.alert("Failed: " + reason);});
+            $('#go').click(function(){
+                try {
+                    var sig = $('#sig').val();
+                    var dat = $('#dat').val();
+                    var out = eosjs_ecc.recover(sig, dat);
+                    $('#out').val(out);
+                } catch(ex) {
+                     window.alert("Failed: " + ex);
+                }
+            });
+            $('#go2').click(function(){
+                try {
+                    var priv = $('#privkey').val();
+                    var dat = $('#dat2').val();
+                    var out = eosjs_ecc.sign(dat, priv);
+                    $('#out2').val(out);
+                } catch(ex) {
+                     window.alert("Failed: " + ex);
+                }
+            });
+        });
+</script>
+</body>
+</html>

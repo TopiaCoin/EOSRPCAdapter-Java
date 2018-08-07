@@ -51,8 +51,19 @@
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk16</artifactId>
-      <version>1.46</version>
+      <artifactId>bcprov-jdk15on</artifactId>
+      <version>1.59</version>
+    </dependency>
+    <!--<dependency>-->
+      <!--<groupId>org.bouncycastle</groupId>-->
+      <!--<artifactId>bcprov-ext-jdk16</artifactId>-->
+      <!--<version>1.45</version>-->
+    <!--</dependency>-->
+
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.10</version>
     </dependency>
 
     <!-- Testing Dependencies -->
