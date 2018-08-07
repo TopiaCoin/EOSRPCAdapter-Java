@@ -114,7 +114,7 @@ public class JavaWalletTest extends AbstractWalletTests {
 
             System.out.println("Expected Public Key : " + publicKey);
             System.out.println("Recovered Public Key: " + recoveredKey);
-//            assertEquals(publicKey, recoveredKey);
+            assertEquals(publicKey, recoveredKey);
         }
 
 
@@ -133,7 +133,7 @@ public class JavaWalletTest extends AbstractWalletTests {
 
             System.out.println("Expected Public Key : " + publicKey);
             System.out.println("Recovered Public Key: " + recoveredKey);
-//            assertEquals(publicKey, recoveredKey);
+            assertEquals(publicKey, recoveredKey);
         }
 
         SignedTransaction signedTransaction3;
@@ -151,7 +151,7 @@ public class JavaWalletTest extends AbstractWalletTests {
 
             System.out.println("Expected Public Key : " + publicKey);
             System.out.println("Recovered Public Key: " + recoveredKey);
-//            assertEquals(publicKey, recoveredKey);
+            assertEquals(publicKey, recoveredKey);
         }
 
 
