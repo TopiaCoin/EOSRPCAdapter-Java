@@ -578,6 +578,7 @@ public class JavaWallet implements Wallet {
             }
 
             String privateKeyWif = _keys.get(publicKeyWif);
+            System.out.println( "privateKey : " + privateKeyWif);
             ECPrivateKey privateKey = EOSKeysUtil.checkAndDecodePrivateKey(privateKeyWif);
 
             ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(EOSKeysUtil.ECC_CURVE_NAME);
@@ -596,18 +597,22 @@ public class JavaWallet implements Wallet {
 
                 r = components[0];
                 s = components[1];
-//                System.out.println( "R : "+ r) ;
-//                System.out.println( "S : "+ s) ;
 
-            int i = 0;
-            while (i < 4) {
-                String testSig = EOSKeysUtil.encodeAndCheckSignature(r, s, (byte) i++);
-                String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
-                if (publicKeyWif.equals(recoveredKey)) {
-                    signature = testSig;
-                    break;
+                // Canonicalize the signature so that the S value is in the bottom half of the curve order.
+                if ( s.compareTo(curve.getN().shiftRight(1)) > 0 ) {
+                    s = curve.getN().subtract(s);
                 }
-            }
+
+                int i = 0;
+                while (i < 4) {
+                    String testSig = EOSKeysUtil.encodeAndCheckSignature(r, s, (byte) i);
+                    String recoveredKey = EOSKeysUtil.recoverPublicKey(testSig, digest);
+                    if (publicKeyWif.equals(recoveredKey)) {
+                        signature = testSig;
+                        break;
+                    }
+                    i++;
+                }
             } while ( !EOSKeysUtil.isCanonical(r, s) ) ;
 
             return signature;

@@ -1,7 +1,6 @@
 package io.topiacoin.eosrpcadapter.util;
 
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 
 import org.bouncycastle.crypto.Digest;
@@ -23,7 +22,7 @@ public class HMacDSAKCalculator2
     private final byte[] K;
     private final byte[] V;
 
-    private int extraNonce;
+    private int minimumAttempts;
 
     private BigInteger n;
 
@@ -37,7 +36,7 @@ public class HMacDSAKCalculator2
         this.hMac = new HMac(digest);
         this.V = new byte[hMac.getMacSize()];
         this.K = new byte[hMac.getMacSize()];
-        this.extraNonce = 0;
+        this.minimumAttempts = 0;
     }
 
     public boolean isDeterministic()
@@ -54,8 +53,7 @@ public class HMacDSAKCalculator2
     {
         this.n = n;
 
-        byte[] nonceBytes = ByteBuffer.allocate(4).putInt(extraNonce).array();
-        extraNonce++;
+        minimumAttempts++;
 
         Arrays.fill(V, (byte)0x01);
         Arrays.fill(K, (byte)0);
@@ -84,7 +82,6 @@ public class HMacDSAKCalculator2
         hMac.update((byte)0x00);
         hMac.update(x, 0, x.length);
         hMac.update(m, 0, m.length);
-        hMac.update(nonceBytes, 0, nonceBytes.length);
 
         hMac.doFinal(K, 0);
 
@@ -110,6 +107,7 @@ public class HMacDSAKCalculator2
 
     public BigInteger nextK()
     {
+        int currentAttempts = 0 ;
         byte[] t = new byte[((n.bitLength() + 7) / 8)];
 
         for (;;)
@@ -129,10 +127,11 @@ public class HMacDSAKCalculator2
 
             BigInteger k = bitsToInt(t);
 
-            if (k.compareTo(ZERO) > 0 && k.compareTo(n) < 0)
+            if (k.compareTo(ZERO) > 0 && k.compareTo(n) < 0 && currentAttempts >= minimumAttempts)
             {
                 return k;
             }
+            currentAttempts++;
 
             hMac.update(V, 0, V.length);
             hMac.update((byte)0x00);
