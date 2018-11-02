@@ -15,18 +15,23 @@ import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
+import io.topiacoin.eosrpcadapter.util.Base32;
+import io.topiacoin.eosrpcadapter.util.Base58;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -273,7 +278,7 @@ public class RPCChain implements Chain {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            _log.debug("ABI JSON to Bin Response: " + response);
+            _log.info("ABI JSON to Bin Response: " + response);
 
             if (response.response != null) {
                 abiJsonToBinResponse = _objectMapper.readValue(response.response, TransactionBinArgs.class);
@@ -480,6 +485,93 @@ public class RPCChain implements Chain {
 
         ArrayList<Transaction.Action> actions = new ArrayList<Transaction.Action>();
         actions.add(txAction);
+
+        Transaction transaction = new Transaction(expDateString, last_irreversible_block_num, last_irreversible_block_prefix,0, 0, 0, null, actions, null, null, null);
+
+        return transaction;
+    }
+
+    public Transaction setContract(String account, InputStream abi, InputStream wasm) throws ChainException {
+        Date expirationDate = new Date(System.currentTimeMillis() + 60000);
+        String eosioAccount = "eosio";
+        Transaction.Authorization authorization = new Transaction.Authorization(account, "active");
+        List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
+        /*String abiHex;
+        String wasmHex;
+        try {
+            abiHex = Hex.encodeHexString(IOUtils.toByteArray(abi));
+        } catch (IOException e) {
+            throw new RuntimeException("ABI data invalid", e);
+        }
+        try {
+            wasmHex = Hex.encodeHexString(IOUtils.toByteArray(wasm));
+        } catch (IOException e) {
+            throw new RuntimeException("WASM data invalid", e);
+        }*/
+        byte[] abiDat;
+        byte[] wasmDat;
+        try {
+            abiDat = IOUtils.toByteArray(abi);
+        } catch (IOException e) {
+            throw new RuntimeException("ABI data invalid", e);
+        }
+        try {
+            wasmDat = IOUtils.toByteArray(wasm);
+        } catch (IOException e) {
+            throw new RuntimeException("WASM data invalid", e);
+        }
+
+
+        EOSByteWriter setCodeWriter = new EOSByteWriter(wasmDat.length + 64);
+        setCodeWriter.putLong(Base32.decode(account)); //acct name
+        setCodeWriter.put((byte) 0); //vmtype
+        setCodeWriter.put((byte) 0); //vmversion
+        setCodeWriter.putVariableUInt(wasmDat.length); //dat length
+        setCodeWriter.putBytes(wasmDat); //dat
+
+        byte[] setCodeDat = setCodeWriter.toBytes();
+
+        EOSByteWriter setAbiWriter = new EOSByteWriter(abiDat.length + 64);
+        setAbiWriter.putLong(Base32.decode(account)); //acct name
+        setAbiWriter.putVariableUInt(abiDat.length); //dat length
+        setAbiWriter.putBytes(abiDat);
+
+        byte[] setAbiDat = setAbiWriter.toBytes();
+
+
+
+
+        /*Map<String, Object> setCodeArgs = new HashMap();
+        setCodeArgs.put("account", account);
+        setCodeArgs.put("vmtype", 0);
+        setCodeArgs.put("vmversion", 0);
+        setCodeArgs.put("code", wasmDat);
+        TransactionBinArgs setCodeBinArgsResponse = abiJsonToBin(eosioAccount, "setcode", setCodeArgs);
+        String setCodeArgsStr = setCodeBinArgsResponse.binargs;*/
+
+        Transaction.Action setCodeAction = new Transaction.Action(eosioAccount, "setcode", authorizations, Hex.encodeHexString(setCodeDat));
+
+        Map<String, Object> setAbiArgs = new HashMap();
+        setAbiArgs.put("account", account);
+        setAbiArgs.put("abi", /*abiDat*/Hex.encodeHexString(abiDat));
+        TransactionBinArgs setAbiBinArgsResponse = abiJsonToBin(eosioAccount, "setabi", setAbiArgs);
+        String setAbiArgsStr = setAbiBinArgsResponse.binargs;
+
+        Transaction.Action setAbiAction = new Transaction.Action(eosioAccount, "setabi", authorizations, setAbiArgsStr/*Hex.encodeHexString(setAbiDat)*/);
+
+        ArrayList<Transaction.Action> actions = new ArrayList<Transaction.Action>();
+        actions.add(setCodeAction);
+        actions.add(setAbiAction);
+
+        TimeZone tz = TimeZone.getTimeZone("UTC");
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        df.setTimeZone(tz);
+        String expDateString = df.format(expirationDate);
+
+        ChainInfo info = getInfo();
+        long last_irreversible_block_num = info.last_irreversible_block_num;
+        BlockInfo blockInfo = getBlock(Long.toString(last_irreversible_block_num));
+        long last_irreversible_block_prefix = blockInfo.ref_block_prefix;
 
         Transaction transaction = new Transaction(expDateString, last_irreversible_block_num, last_irreversible_block_prefix,0, 0, 0, null, actions, null, null, null);
 
