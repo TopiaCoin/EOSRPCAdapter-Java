@@ -74,6 +74,7 @@ public class EOSRPCAdapterTest {
         Transaction.Authorization authorization = new Transaction.Authorization("inita", "active");
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         transaction = chain.createRawTransaction("inita", "anyaction", args, scope, authorizations, expDate);
+        System.out.println(transaction);
 
         List<String> publicKeys = wallet.getPublicKeys(null);
 
