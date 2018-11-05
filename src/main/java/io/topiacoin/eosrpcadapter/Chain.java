@@ -12,6 +12,7 @@ import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 
+import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +70,8 @@ public interface Chain {
                                      List<String> scopes,
                                      List<Transaction.Authorization> authorizations,
                                      Date expirationDate) throws ChainException;
+
+    Transaction setContract(String account, InputStream abi, InputStream wasm) throws ChainException;
 
     String packTransaction(SignedTransaction transaction) throws ChainException;
 }
