@@ -492,7 +492,7 @@ public class RPCChain implements Chain {
         return transaction;
     }
 
-    public Transaction setContract(String account, InputStream abiStream, InputStream wasm) throws ChainException {
+    public Transaction createSetContractTransaction(String account, InputStream abiStream, InputStream wasm) throws ChainException {
         Date expirationDate = new Date(System.currentTimeMillis() + 60000);
         String eosioAccount = "eosio";
         Transaction.Authorization authorization = new Transaction.Authorization(account, "active");

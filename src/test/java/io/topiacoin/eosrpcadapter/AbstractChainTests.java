@@ -8,7 +8,6 @@ import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
-import org.apache.commons.codec.binary.Hex;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -98,7 +97,7 @@ public abstract class AbstractChainTests {
     @Test
     public void testSetContract() throws Exception {
         Chain chain = getChain("constantine.secrata.com");
-        Transaction t = chain.setContract("inita", new ByteArrayInputStream(testAbi.getBytes()), new ByteArrayInputStream("foobar".getBytes()));
+        Transaction t = chain.createSetContractTransaction("inita", new ByteArrayInputStream(testAbi.getBytes()), new ByteArrayInputStream("foobar".getBytes()));
         System.out.println(t.toString());
         List<Transaction.Action> actions = t.actions;
         for(Transaction.Action action : actions) {

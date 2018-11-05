@@ -71,7 +71,7 @@ public interface Chain {
                                      List<Transaction.Authorization> authorizations,
                                      Date expirationDate) throws ChainException;
 
-    Transaction setContract(String account, InputStream abi, InputStream wasm) throws ChainException;
+    Transaction createSetContractTransaction(String account, InputStream abi, InputStream wasm) throws ChainException;
 
     String packTransaction(SignedTransaction transaction) throws ChainException;
 }
