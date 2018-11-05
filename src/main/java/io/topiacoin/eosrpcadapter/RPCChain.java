@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
+import io.topiacoin.eosrpcadapter.messages.Abi;
 import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
@@ -491,27 +492,15 @@ public class RPCChain implements Chain {
         return transaction;
     }
 
-    public Transaction setContract(String account, InputStream abi, InputStream wasm) throws ChainException {
+    public Transaction setContract(String account, InputStream abiStream, InputStream wasm) throws ChainException {
         Date expirationDate = new Date(System.currentTimeMillis() + 60000);
         String eosioAccount = "eosio";
         Transaction.Authorization authorization = new Transaction.Authorization(account, "active");
         List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
-        /*String abiHex;
-        String wasmHex;
-        try {
-            abiHex = Hex.encodeHexString(IOUtils.toByteArray(abi));
-        } catch (IOException e) {
-            throw new RuntimeException("ABI data invalid", e);
-        }
-        try {
-            wasmHex = Hex.encodeHexString(IOUtils.toByteArray(wasm));
-        } catch (IOException e) {
-            throw new RuntimeException("WASM data invalid", e);
-        }*/
         byte[] abiDat;
         byte[] wasmDat;
         try {
-            abiDat = IOUtils.toByteArray(abi);
+            abiDat = IOUtils.toByteArray(abiStream);
         } catch (IOException e) {
             throw new RuntimeException("ABI data invalid", e);
         }
@@ -520,7 +509,6 @@ public class RPCChain implements Chain {
         } catch (IOException e) {
             throw new RuntimeException("WASM data invalid", e);
         }
-
 
         EOSByteWriter setCodeWriter = new EOSByteWriter(wasmDat.length + 64);
         setCodeWriter.putLong(Base32.decode(account)); //acct name
@@ -531,29 +519,22 @@ public class RPCChain implements Chain {
 
         byte[] setCodeDat = setCodeWriter.toBytes();
 
-        EOSByteWriter setAbiWriter = new EOSByteWriter(abiDat.length + 64);
-        setAbiWriter.putLong(Base32.decode(account)); //acct name
-        setAbiWriter.putVariableUInt(abiDat.length); //dat length
-        setAbiWriter.putBytes(abiDat);
-
-        byte[] setAbiDat = setAbiWriter.toBytes();
-
-
-
-
-        /*Map<String, Object> setCodeArgs = new HashMap();
-        setCodeArgs.put("account", account);
-        setCodeArgs.put("vmtype", 0);
-        setCodeArgs.put("vmversion", 0);
-        setCodeArgs.put("code", wasmDat);
-        TransactionBinArgs setCodeBinArgsResponse = abiJsonToBin(eosioAccount, "setcode", setCodeArgs);
-        String setCodeArgsStr = setCodeBinArgsResponse.binargs;*/
+        ObjectMapper mapper = new ObjectMapper();
+        Abi abi;
+        try {
+            abi = mapper.readValue(new String(abiDat), Abi.class);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read ABI", e);
+        }
+        EOSByteWriter setAbiWriter = new EOSByteWriter(abiDat.length);
+        abi.pack(setAbiWriter);
+        abiDat = setAbiWriter.toBytes();
 
         Transaction.Action setCodeAction = new Transaction.Action(eosioAccount, "setcode", authorizations, Hex.encodeHexString(setCodeDat));
 
         Map<String, Object> setAbiArgs = new HashMap();
         setAbiArgs.put("account", account);
-        setAbiArgs.put("abi", /*abiDat*/Hex.encodeHexString(abiDat));
+        setAbiArgs.put("abi", Hex.encodeHexString(abiDat));
         TransactionBinArgs setAbiBinArgsResponse = abiJsonToBin(eosioAccount, "setabi", setAbiArgs);
         String setAbiArgsStr = setAbiBinArgsResponse.binargs;
 
