@@ -24,7 +24,9 @@ public interface Chain {
 
     AccountInfo getAccount(String accountName) throws ChainException;
 
-    Code getCode(String accountName) throws ChainException;
+	Transaction createCreateAccountTransaction(String creator, String accountName, String ownerKey, String activeKey) throws ChainException;
+
+	Code getCode(String accountName) throws ChainException;
 
     TableRows getTableRows(String contract,
                            String scope,

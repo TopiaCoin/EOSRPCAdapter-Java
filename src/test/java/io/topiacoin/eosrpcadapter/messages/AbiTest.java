@@ -1,7 +1,6 @@
-package io.topiacoin.eosrpcadapter.messages.abi;
+package io.topiacoin.eosrpcadapter.messages;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.topiacoin.eosrpcadapter.messages.Abi;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.Test;
@@ -12,11 +11,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class AbiTest {
-
-	@Test
-	public void sanity() {
-		throw new RuntimeException("Not implemented");
-	}
 
 	@Test
 	public void testJsonToAbi() throws IOException {

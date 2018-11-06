@@ -8,9 +8,12 @@ import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.security.Security;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +25,11 @@ public abstract class AbstractChainTests {
     protected abstract Chain getChain() ;
 
     protected abstract Chain getChain(String hostname) ;
+
+    @BeforeClass
+    public static void setUpClass() {
+        Security.addProvider(new BouncyCastleProvider());
+    }
 
     @Test
     public void testChainGetInfo() throws Exception {
@@ -92,6 +100,15 @@ public abstract class AbstractChainTests {
         assertNotNull(response);
 
         System.out.println("Args: " + response.args);
+    }
+
+    @Test
+    public void testCreateAccount() throws Exception {
+        Chain chain = getChain("constantine.secrata.com");
+        Transaction t = chain.createCreateAccountTransaction("eosio", "testa", "EOS55MHXAq4AJ6Gzm9fAxKbUQL9pcLHaZYc9toYdWhg9DPswizRSc", "EOS7i9f9grgWa7eFxpZNMzbESTKjFc6YXhDoSqPQSdpRuECrzdFfR");
+        System.out.println(t.toString());
+        String expectedTransactionData = "0000000000ea3055000000000093b1ca0100000001000218a936f03e2adc1603c84f063baf5591650aad6de8cf702b924474a91f8439050100000001000000010003739c6c44f602d29743e0188ff88e020bf4b7fa7860c907afa2bcf06b8a163e7501000000";
+        assertEquals(expectedTransactionData, t.actions.get(0).data);
     }
 
     @Test

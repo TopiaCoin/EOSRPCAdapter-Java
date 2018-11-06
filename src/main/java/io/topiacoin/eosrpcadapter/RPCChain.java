@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
+import io.topiacoin.eosrpcadapter.exceptions.KeyException;
 import io.topiacoin.eosrpcadapter.messages.Abi;
 import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
@@ -19,6 +20,7 @@ import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 import io.topiacoin.eosrpcadapter.util.Base32;
 import io.topiacoin.eosrpcadapter.util.Base58;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
+import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -151,6 +153,44 @@ public class RPCChain implements Chain {
         }
 
         return getAccountResponse;
+    }
+
+    @Override
+    public Transaction createCreateAccountTransaction(String creator, String accountName, String ownerKey, String activeKey) throws ChainException {
+        List<Map<String, Object>> ownerKeysList = new ArrayList();
+        Map<String, Object> ownerkeys = new HashMap<String, Object>();
+        ownerkeys.put("key", ownerKey/*"00" + Hex.encodeHexString(ownerKeyBytes)*/);
+        ownerkeys.put("weight", 1);
+        ownerKeysList.add(ownerkeys);
+
+        List<Map<String, Object>> activeKeysList = new ArrayList();
+        Map<String, Object> activekeys = new HashMap<String, Object>();
+        activekeys.put("key", activeKey/*"00" + Hex.encodeHexString(activeKeyBytes)*/);
+        activekeys.put("weight", 1);
+        activeKeysList.add(activekeys);
+
+        Map<String, Object> owner_authority = new HashMap<String, Object>();
+        owner_authority.put("threshold", 1);
+        owner_authority.put("keys", ownerKeysList);
+        owner_authority.put("accounts", new ArrayList());
+        owner_authority.put("waits", new ArrayList());
+        Map<String, Object> active_authority = new HashMap<String, Object>();
+        active_authority.put("threshold", 1);
+        active_authority.put("keys", activeKeysList);
+        active_authority.put("accounts", new ArrayList());
+        active_authority.put("waits", new ArrayList());
+
+        Map<String, Object> args = new HashMap<String, Object>();
+        args.put("creator", creator);
+        args.put("name", accountName);
+        args.put("owner", owner_authority);
+        args.put("active", active_authority);
+        List<String> scopes = new ArrayList<String>();
+        scopes.add("active");
+        List<Transaction.Authorization> authorizations = new ArrayList<Transaction.Authorization>();
+        authorizations.add(new Transaction.Authorization(creator, "active"));
+        Date expirationDate = new Date(System.currentTimeMillis() + 60000) ;
+        return createRawTransaction("eosio", "newaccount", args, scopes, authorizations, expirationDate);
     }
 
     @Override
