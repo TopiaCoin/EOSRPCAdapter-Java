@@ -114,10 +114,10 @@ public abstract class AbstractChainTests {
     @Test
     public void testSetContract() throws Exception {
         Chain chain = getChain("constantine.secrata.com");
-        Transaction t = chain.createSetContractTransaction("inita", new ByteArrayInputStream(testAbi.getBytes()), new ByteArrayInputStream("foobar".getBytes()));
-        System.out.println(t.toString());
-        List<Transaction.Action> actions = t.actions;
-        for(Transaction.Action action : actions) {
+        Transaction t2 = chain.createSetContractTransaction("inita", new ByteArrayInputStream(testAbi.getBytes()), new ByteArrayInputStream("foobar".getBytes()));
+        System.out.println(t2.toString());
+        List<Transaction.Action> actions2 = t2.actions;
+        for(Transaction.Action action : actions2) {
             if (action.name.equals("setabi")) {
                 System.out.println("abi:");
                 String abiDat = (String) action.data;//Hex.encodeHexString((byte[]) action.data);

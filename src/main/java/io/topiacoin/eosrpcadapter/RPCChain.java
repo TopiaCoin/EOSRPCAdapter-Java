@@ -532,11 +532,8 @@ public class RPCChain implements Chain {
         return transaction;
     }
 
+    @Override
     public Transaction createSetContractTransaction(String account, InputStream abiStream, InputStream wasm) throws ChainException {
-        Date expirationDate = new Date(System.currentTimeMillis() + 60000);
-        String eosioAccount = "eosio";
-        Transaction.Authorization authorization = new Transaction.Authorization(account, "active");
-        List<Transaction.Authorization> authorizations = Arrays.asList(authorization);
         byte[] abiDat;
         byte[] wasmDat;
         try {
@@ -550,14 +547,17 @@ public class RPCChain implements Chain {
             throw new RuntimeException("WASM data invalid", e);
         }
 
-        EOSByteWriter setCodeWriter = new EOSByteWriter(wasmDat.length + 64);
-        setCodeWriter.putLong(Base32.decode(account)); //acct name
-        setCodeWriter.put((byte) 0); //vmtype
-        setCodeWriter.put((byte) 0); //vmversion
-        setCodeWriter.putVariableUInt(wasmDat.length); //dat length
-        setCodeWriter.putBytes(wasmDat); //dat
-
-        byte[] setCodeDat = setCodeWriter.toBytes();
+        Map<String, Object> args = new HashMap<String, Object>();
+        args.put("account", account);
+        args.put("vmtype", 0);
+        args.put("vmversion", 0);
+        args.put("code", Hex.encodeHexString(wasmDat));
+        List<String> scopes = new ArrayList<String>();
+        scopes.add("active");
+        List<Transaction.Authorization> authorizations = new ArrayList<Transaction.Authorization>();
+        authorizations.add(new Transaction.Authorization(account, "active"));
+        Date expirationDate = new Date(System.currentTimeMillis() + 60000) ;
+        Transaction toReturn = createRawTransaction("eosio", "setcode", args, scopes, authorizations, expirationDate);
 
         ObjectMapper mapper = new ObjectMapper();
         Abi abi;
@@ -570,33 +570,12 @@ public class RPCChain implements Chain {
         abi.pack(setAbiWriter);
         abiDat = setAbiWriter.toBytes();
 
-        Transaction.Action setCodeAction = new Transaction.Action(eosioAccount, "setcode", authorizations, Hex.encodeHexString(setCodeDat));
-
-        Map<String, Object> setAbiArgs = new HashMap();
-        setAbiArgs.put("account", account);
-        setAbiArgs.put("abi", Hex.encodeHexString(abiDat));
-        TransactionBinArgs setAbiBinArgsResponse = abiJsonToBin(eosioAccount, "setabi", setAbiArgs);
-        String setAbiArgsStr = setAbiBinArgsResponse.binargs;
-
-        Transaction.Action setAbiAction = new Transaction.Action(eosioAccount, "setabi", authorizations, setAbiArgsStr/*Hex.encodeHexString(setAbiDat)*/);
-
-        ArrayList<Transaction.Action> actions = new ArrayList<Transaction.Action>();
-        actions.add(setCodeAction);
-        actions.add(setAbiAction);
-
-        TimeZone tz = TimeZone.getTimeZone("UTC");
-        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-        df.setTimeZone(tz);
-        String expDateString = df.format(expirationDate);
-
-        ChainInfo info = getInfo();
-        long last_irreversible_block_num = info.last_irreversible_block_num;
-        BlockInfo blockInfo = getBlock(Long.toString(last_irreversible_block_num));
-        long last_irreversible_block_prefix = blockInfo.ref_block_prefix;
-
-        Transaction transaction = new Transaction(expDateString, last_irreversible_block_num, last_irreversible_block_prefix,0, 0, 0, null, actions, null, null, null);
-
-        return transaction;
+        Map<String, Object> abiArgs = new HashMap<String, Object>();
+        abiArgs.put("account", account);
+        abiArgs.put("abi", Hex.encodeHexString(abiDat));
+        Transaction setCodeTransaction = createRawTransaction("eosio", "setabi", abiArgs, scopes, authorizations, expirationDate);
+        toReturn.actions.add(setCodeTransaction.actions.get(0));
+        return toReturn;
     }
 
 
