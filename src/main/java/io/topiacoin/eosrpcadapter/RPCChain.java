@@ -17,6 +17,7 @@ import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
+import io.topiacoin.eosrpcadapter.model.ProducerInfo;
 import io.topiacoin.eosrpcadapter.util.Base32;
 import io.topiacoin.eosrpcadapter.util.Base58;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 
 public class RPCChain implements Chain {
@@ -159,13 +161,13 @@ public class RPCChain implements Chain {
     public Transaction createCreateAccountTransaction(String creator, String accountName, String ownerKey, String activeKey) throws ChainException {
         List<Map<String, Object>> ownerKeysList = new ArrayList();
         Map<String, Object> ownerkeys = new HashMap<String, Object>();
-        ownerkeys.put("key", ownerKey/*"00" + Hex.encodeHexString(ownerKeyBytes)*/);
+        ownerkeys.put("key", ownerKey);
         ownerkeys.put("weight", 1);
         ownerKeysList.add(ownerkeys);
 
         List<Map<String, Object>> activeKeysList = new ArrayList();
         Map<String, Object> activekeys = new HashMap<String, Object>();
-        activekeys.put("key", activeKey/*"00" + Hex.encodeHexString(activeKeyBytes)*/);
+        activekeys.put("key", activeKey);
         activekeys.put("weight", 1);
         activeKeysList.add(activekeys);
 
@@ -191,6 +193,31 @@ public class RPCChain implements Chain {
         authorizations.add(new Transaction.Authorization(creator, "active"));
         Date expirationDate = new Date(System.currentTimeMillis() + 60000) ;
         return createRawTransaction("eosio", "newaccount", args, scopes, authorizations, expirationDate);
+    }
+
+    @Override
+    public Transaction createSetProducersTransaction(String creator, Set<ProducerInfo> producers) throws ChainException {
+        if(producers.isEmpty()) {
+            throw new IllegalStateException("Must provide at least one producer");
+        }
+        List<Map<String, Object>> producersList = new ArrayList<>();
+
+        for(ProducerInfo producer : producers) {
+            Map<String, Object> producerMap = new HashMap<>();
+            producerMap.put("producer_name", producer.getProducerName());
+            producerMap.put("block_signing_key", producer.getBlockSigningKey());
+            producersList.add(producerMap);
+        }
+
+        Map<String, Object> args = new HashMap<>();
+        args.put("schedule", producersList);
+
+        List<String> scopes = new ArrayList<String>();
+        scopes.add("active");
+        List<Transaction.Authorization> authorizations = new ArrayList<Transaction.Authorization>();
+        authorizations.add(new Transaction.Authorization(creator, "active"));
+        Date expirationDate = new Date(System.currentTimeMillis() + 60000) ;
+        return createRawTransaction("eosio", "setprods", args, scopes, authorizations, expirationDate);
     }
 
     @Override

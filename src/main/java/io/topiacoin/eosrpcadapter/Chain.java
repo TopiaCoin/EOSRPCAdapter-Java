@@ -11,11 +11,13 @@ import io.topiacoin.eosrpcadapter.messages.TableRows;
 import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
+import io.topiacoin.eosrpcadapter.model.ProducerInfo;
 
 import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public interface Chain {
     ChainInfo getInfo() throws ChainException;
@@ -25,6 +27,8 @@ public interface Chain {
     AccountInfo getAccount(String accountName) throws ChainException;
 
 	Transaction createCreateAccountTransaction(String creator, String accountName, String ownerKey, String activeKey) throws ChainException;
+
+	Transaction createSetProducersTransaction(String creator, Set<ProducerInfo> producers) throws ChainException;
 
 	Code getCode(String accountName) throws ChainException;
 
