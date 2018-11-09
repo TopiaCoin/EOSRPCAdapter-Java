@@ -439,6 +439,13 @@ public class JavaWallet implements Wallet {
             wallet._wallet_filename = name + ".wallet";
             wallet._checksum = hashBytes;
 
+            try {
+                wallet.importKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3");
+            } catch (KeyException e) {
+                throw new IOException("Failed to add default key to wallet", e);
+            } catch (WalletException e) {
+                throw new IOException("Failed to add default key to wallet", e);
+            }
             wallet.updateWalletCipherKeys();
             wallet.saveWallet();
 

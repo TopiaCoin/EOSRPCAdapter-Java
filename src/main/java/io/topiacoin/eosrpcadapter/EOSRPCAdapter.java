@@ -68,8 +68,12 @@ public class EOSRPCAdapter {
      * @return An instance of the Wallet class
      */
     public synchronized Wallet wallet() {
-        if ( _wallet == null ){
-            _wallet = new RPCWallet(eosWalletURL, this) ;
+        if ( _wallet == null ) {
+            if(eosWalletURL == null) {
+                _wallet = new JavaWallet();
+            } else {
+                _wallet = new RPCWallet(eosWalletURL, this);
+            }
         }
         return _wallet;
     }
