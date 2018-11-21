@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
-import io.topiacoin.eosrpcadapter.exceptions.KeyException;
 import io.topiacoin.eosrpcadapter.messages.Abi;
 import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.Code;
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
+import io.topiacoin.eosrpcadapter.messages.Action;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.TableRows;
@@ -18,10 +18,7 @@ import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 import io.topiacoin.eosrpcadapter.model.ProducerInfo;
-import io.topiacoin.eosrpcadapter.util.Base32;
-import io.topiacoin.eosrpcadapter.util.Base58;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
-import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -35,7 +32,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -261,7 +257,7 @@ public class RPCChain implements Chain {
                                   String table,
                                   long limit,
                                   boolean json) throws ChainException {
-        return getTableRows(contract, scope, table, null, "0", "-1", limit, json);
+        return getTableRows(contract, scope, table, 1, null, "0", "-1", limit, json);
     }
 
     @Override
@@ -272,14 +268,15 @@ public class RPCChain implements Chain {
                                   String upperBound,
                                   long limit,
                                   boolean json) throws ChainException {
-        return getTableRows(contract, scope, table, null, lowerBound, upperBound, limit, json);
+        return getTableRows(contract, scope, table, 1, null, lowerBound, upperBound, limit, json);
     }
 
     @Override
     public TableRows getTableRows(String contract,
                                   String scope,
                                   String table,
-                                  String key,
+                                  Integer indexPosition,
+                                  String keyType,
                                   String lowerBound,
                                   String upperBound,
                                   long limit,
@@ -294,8 +291,14 @@ public class RPCChain implements Chain {
             requestMap.put("scope", scope);
             requestMap.put("table", table);
             requestMap.put("limit", limit);
-            if ( key != null ) {
-                requestMap.put("table_key", key);
+            if ( indexPosition != null ) {
+                requestMap.put("index_position", indexPosition);
+                if ( indexPosition > 1 && keyType == null ) {
+                    throw new IllegalArgumentException("Must specify keyType when using non-primary index");
+                }
+                if ( keyType != null ) {
+                    requestMap.put("key_type", keyType);
+                }
             }
             requestMap.put("lower_bound", lowerBound);
             requestMap.put("upper_bound", upperBound);
@@ -534,7 +537,30 @@ public class RPCChain implements Chain {
                                             Map args,
                                             List<String> scopes,
                                             List<Transaction.Authorization> authorizations,
-                                            Date expirationDate) throws ChainException {
+                                            Date expirationDate)
+            throws ChainException {
+
+        return createRawTransaction(
+                new Action(account, name, authorizations, args),
+                expirationDate);
+    }
+
+    @Override
+    public Transaction createRawTransaction(Action action, Date expirationDate)
+            throws ChainException {
+        List<Action> actions = new ArrayList<>();
+        actions.add(action);
+
+        return createRawTransaction(actions, expirationDate);
+    }
+
+    @Override
+    public Transaction createRawTransaction(List<Action> actions, Date expirationDate)
+            throws ChainException {
+
+        if ( actions.size() == 0 ) {
+            throw new IllegalArgumentException("Must specify at least one action to include in the transaction");
+        }
 
         TimeZone tz = TimeZone.getTimeZone("UTC");
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -546,15 +572,36 @@ public class RPCChain implements Chain {
         BlockInfo blockInfo = getBlock(Long.toString(last_irreversible_block_num));
         long last_irreversible_block_prefix = blockInfo.ref_block_prefix;
 
-        TransactionBinArgs binArgsResponse = abiJsonToBin(account, name, args);
-        String binArgs = binArgsResponse.binargs;
+        ArrayList<Transaction.Action> txActions = new ArrayList<Transaction.Action>();
 
-        Transaction.Action txAction = new Transaction.Action(account, name, authorizations, binArgs);
+        for ( Action action : actions ) {
+            TransactionBinArgs binArgsResponse = abiJsonToBin(
+                    action.account,
+                    action.name,
+                    action.args);
+            String binArgs = binArgsResponse.binargs;
 
-        ArrayList<Transaction.Action> actions = new ArrayList<Transaction.Action>();
-        actions.add(txAction);
+            Transaction.Action txAction = new Transaction.Action(
+                    action.account,
+                    action.name,
+                    action.authorizations,
+                    binArgs);
 
-        Transaction transaction = new Transaction(expDateString, last_irreversible_block_num, last_irreversible_block_prefix,0, 0, 0, null, actions, null, null, null);
+            txActions.add(txAction);
+        }
+
+        Transaction transaction = new Transaction(
+                expDateString,
+                last_irreversible_block_num,
+                last_irreversible_block_prefix,
+                0,
+                0,
+                0,
+                null,
+                txActions,
+                null,
+                null,
+                null);
 
         return transaction;
     }

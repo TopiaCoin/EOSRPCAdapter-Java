@@ -3,6 +3,7 @@ package io.topiacoin.eosrpcadapter;
 import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
 import io.topiacoin.eosrpcadapter.exceptions.WalletException;
+import io.topiacoin.eosrpcadapter.messages.Action;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -112,7 +114,7 @@ public class EOSRPCAdapter {
     }
 
 
-    // -------- Convience Methods --------
+    // -------- Convienence Methods --------
 
     public Transaction.Response pushTransaction(String account,
                                                 String name,
@@ -122,17 +124,54 @@ public class EOSRPCAdapter {
                                                 Date expirationDate,
                                                 String walletName) throws ChainException, WalletException {
 
+        Action action = new Action(account, name, authorizations, args) ;
+
+        return pushTransaction(action, expirationDate, walletName);
+    }
+
+    public Transaction.Response pushTransaction(Action action,
+                                                Date expirationDate,
+                                                String walletName) throws ChainException, WalletException {
+        List<Action> actions = new ArrayList<>();
+        actions.add(action);
+
+        List<String> walletNames = new ArrayList<>();
+        walletNames.add(walletName);
+
+        return pushTransaction(actions, expirationDate, walletNames);
+    }
+
+    public Transaction.Response pushTransaction(Action action,
+                                                Date expirationDate,
+                                                List<String> walletNames) throws ChainException, WalletException {
+        List<Action> actions = new ArrayList<>();
+        actions.add(action);
+
+        return pushTransaction(actions, expirationDate, walletNames);
+    }
+
+    public Transaction.Response pushTransaction(List<Action> actions,
+                                                Date expirationDate,
+                                                String walletName) throws ChainException, WalletException {
+        List<String> walletNames = new ArrayList<>();
+        walletNames.add(walletName);
+        return pushTransaction(actions, expirationDate, walletNames);
+    }
+
+    public Transaction.Response pushTransaction(List<Action> actions,
+                                                Date expirationDate,
+                                                List<String> walletNames) throws ChainException, WalletException {
+
         // Create the unsigned transaction
         Transaction registerTX = chain().createRawTransaction(
-                account,
-                name,
-                args,
-                scopes,
-                authorizations,
+                actions,
                 expirationDate);
 
-        // Get the available Keys for the two accounts
-        List<String> availableKeys = wallet().getPublicKeys(walletName);
+        // Get the available Keys from the specified wallets
+        List<String> availableKeys = new ArrayList<>();
+        for ( String walletName : walletNames ) {
+            availableKeys.addAll(wallet().getPublicKeys(walletName));
+        }
 
         // Determine which keys this transaction requires
         RequiredKeys requiredKeys = chain().getRequiredKeys(registerTX, availableKeys);

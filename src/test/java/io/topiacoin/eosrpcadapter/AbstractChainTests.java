@@ -72,14 +72,14 @@ public abstract class AbstractChainTests {
     public void testChainGetTableRows() throws Exception {
         Chain chain = getChain();
 
-        TableRows response = chain.getTableRows("sampledb", "sampledb", "workspace", -1, true);
+        TableRows response = chain.getTableRows("inita", "inita", "containers", -1, true);
 
         assertNotNull(response);
     }
 
     @Test
     public void testChainAbiJsonToBin() throws Exception {
-        Chain chain = getChain("constantine.secrata.com");
+        Chain chain = getChain("127.0.0.1");
 
         Map<String,String> args = new HashMap<String,String>();
         args.put("from", "inita");
@@ -104,7 +104,7 @@ public abstract class AbstractChainTests {
 
     @Test
     public void testCreateAccount() throws Exception {
-        Chain chain = getChain("constantine.secrata.com");
+        Chain chain = getChain("127.0.0.1");
         Transaction t = chain.createCreateAccountTransaction("eosio", "testa", "EOS55MHXAq4AJ6Gzm9fAxKbUQL9pcLHaZYc9toYdWhg9DPswizRSc", "EOS7i9f9grgWa7eFxpZNMzbESTKjFc6YXhDoSqPQSdpRuECrzdFfR");
         System.out.println(t.toString());
         String expectedTransactionData = "0000000000ea3055000000000093b1ca0100000001000218a936f03e2adc1603c84f063baf5591650aad6de8cf702b924474a91f8439050100000001000000010003739c6c44f602d29743e0188ff88e020bf4b7fa7860c907afa2bcf06b8a163e7501000000";
@@ -113,7 +113,7 @@ public abstract class AbstractChainTests {
 
     @Test
     public void testSetContract() throws Exception {
-        Chain chain = getChain("constantine.secrata.com");
+        Chain chain = getChain("127.0.0.1");
         Transaction t2 = chain.createSetContractTransaction("inita", new ByteArrayInputStream(testAbi.getBytes()), new ByteArrayInputStream("foobar".getBytes()));
         System.out.println(t2.toString());
         List<Transaction.Action> actions2 = t2.actions;
