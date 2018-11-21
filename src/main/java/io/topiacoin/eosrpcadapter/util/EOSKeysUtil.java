@@ -697,7 +697,7 @@ public class EOSKeysUtil {
                 byte[] tmp = new byte[32] ;
                 System.arraycopy(rBytes, 0, tmp, (32 - rBytes.length), rBytes.length);
                 rBytes = tmp;
-            } else {
+            } else if ( rBytes.length > 32 ){
                 throw new RuntimeException ("OMG! The rBytes doesn't match our expectations!! - " + Hex.encodeHexString(rBytes)) ;
             }
             byte[] sBytes = s.toByteArray();
@@ -708,7 +708,7 @@ public class EOSKeysUtil {
                 byte[] tmp = new byte[32] ;
                 System.arraycopy(sBytes, 0, tmp, (32 - sBytes.length), sBytes.length);
                 sBytes = tmp;
-            } else {
+            } else if ( rBytes.length > 32){
                 throw new RuntimeException ("OMG! The sBytes doesn't match our expectations!! - " + Hex.encodeHexString(rBytes)) ;
             }
 

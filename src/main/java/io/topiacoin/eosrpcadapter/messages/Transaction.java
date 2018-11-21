@@ -67,7 +67,7 @@ public class Transaction {
         writer.putShort((short) (ref_block_num & 0xFFFF));
         writer.putInt((int) (ref_block_prefix & 0xFFFFFFFF));
         writer.putVariableUInt(max_net_usage_words);
-        writer.putVariableUInt(max_cpu_usage_ms);
+        writer.put((byte)(max_cpu_usage_ms & 0xff));
         writer.putVariableUInt(delay_sec);
 
         // Pack the Context Free Actions
