@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
-import io.topiacoin.eosrpcadapter.exceptions.KeyException;
 import io.topiacoin.eosrpcadapter.messages.Abi;
 import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.Code;
 import io.topiacoin.eosrpcadapter.messages.ErrorResponse;
+import io.topiacoin.eosrpcadapter.messages.ProducerSchedule;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.TableRows;
@@ -18,10 +18,7 @@ import io.topiacoin.eosrpcadapter.messages.Transaction;
 import io.topiacoin.eosrpcadapter.messages.TransactionBinArgs;
 import io.topiacoin.eosrpcadapter.messages.TransactionJSONArgs;
 import io.topiacoin.eosrpcadapter.model.ProducerInfo;
-import io.topiacoin.eosrpcadapter.util.Base32;
-import io.topiacoin.eosrpcadapter.util.Base58;
 import io.topiacoin.eosrpcadapter.util.EOSByteWriter;
-import io.topiacoin.eosrpcadapter.util.EOSKeysUtil;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -35,7 +32,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -142,6 +138,41 @@ public class RPCChain implements Chain {
 
             if (response.response != null) {
                 getAccountResponse = _objectMapper.readValue(response.response, AccountInfo.class);
+            } else {
+                ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
+                throw new ChainException(errorResponse.message, errorResponse);
+            }
+        } catch (MalformedURLException e) {
+            throw new ChainException(e, null);
+        } catch (IOException e) {
+            throw new ChainException(e, null);
+        } catch (EOSException e) {
+            throw new ChainException(e, null);
+        }
+
+        return getAccountResponse;
+    }
+
+    @Override
+    public ProducerSchedule getProducers() throws ChainException {
+        ProducerSchedule getAccountResponse = null;
+
+        try {
+            URL getBlockURL = new URL(chainURL, "/v1/chain/get_producer_schedule");
+
+            Map<String, String> requestMap = new HashMap<String, String>();
+            requestMap.put("limit", "100");
+
+            String requestString = _objectMapper.writeValueAsString(requestMap);
+
+            _log.debug("Get Producer Schedule Request: " + requestString);
+
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
+
+            _log.debug("Get Producer Schedule Response: " + response);
+
+            if (response.response != null) {
+                getAccountResponse = _objectMapper.readValue(response.response, ProducerSchedule.class);
             } else {
                 ErrorResponse errorResponse = _objectMapper.readValue(response.error.getEntity().getContent(), ErrorResponse.class);
                 throw new ChainException(errorResponse.message, errorResponse);

@@ -5,6 +5,7 @@ import io.topiacoin.eosrpcadapter.messages.AccountInfo;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.Code;
+import io.topiacoin.eosrpcadapter.messages.ProducerSchedule;
 import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
 import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
 import io.topiacoin.eosrpcadapter.messages.TableRows;
@@ -26,7 +27,9 @@ public interface Chain {
 
     AccountInfo getAccount(String accountName) throws ChainException;
 
-	Transaction createCreateAccountTransaction(String creator, String accountName, String ownerKey, String activeKey) throws ChainException;
+    ProducerSchedule getProducers() throws ChainException;
+
+    Transaction createCreateAccountTransaction(String creator, String accountName, String ownerKey, String activeKey) throws ChainException;
 
 	Transaction createSetProducersTransaction(String creator, Set<ProducerInfo> producers) throws ChainException;
 
