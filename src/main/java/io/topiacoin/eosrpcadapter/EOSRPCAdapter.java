@@ -1,6 +1,13 @@
 package io.topiacoin.eosrpcadapter;
 
+import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.exceptions.EOSException;
+import io.topiacoin.eosrpcadapter.exceptions.WalletException;
+import io.topiacoin.eosrpcadapter.messages.Action;
+import io.topiacoin.eosrpcadapter.messages.ChainInfo;
+import io.topiacoin.eosrpcadapter.messages.RequiredKeys;
+import io.topiacoin.eosrpcadapter.messages.SignedTransaction;
+import io.topiacoin.eosrpcadapter.messages.Transaction;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.logging.Log;
@@ -18,11 +25,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 public class EOSRPCAdapter {
 
     public static class EOSRPCResponse {
-        public String response ;
+        public String response;
         public HttpResponse error;
 
         public EOSRPCResponse(String response) {
@@ -54,7 +65,7 @@ public class EOSRPCAdapter {
     /**
      * Creates a new EOS RPC Adapter instance that will connect to the specified node and wallet URLs.
      *
-     * @param nodeURL The URL of the EOS node to communicate with
+     * @param nodeURL   The URL of the EOS node to communicate with
      * @param walletURL The URL of the EOS wallet to communicate with
      */
     public EOSRPCAdapter(URL nodeURL, URL walletURL) {
@@ -68,8 +79,8 @@ public class EOSRPCAdapter {
      * @return An instance of the Wallet class
      */
     public synchronized Wallet wallet() {
-        if ( _wallet == null ) {
-            if(eosWalletURL == null) {
+        if (_wallet == null) {
+            if (eosWalletURL == null) {
                 _wallet = new JavaWallet();
             } else {
                 _wallet = new RPCWallet(eosWalletURL, this);
@@ -84,7 +95,7 @@ public class EOSRPCAdapter {
      * @return An instance of the Chain class
      */
     public synchronized Chain chain() {
-        if ( _chain == null ) {
+        if (_chain == null) {
             _chain = new RPCChain(eosNodeURL, this);
         }
         return _chain;
@@ -96,16 +107,92 @@ public class EOSRPCAdapter {
      * @return An instance of the Account History class.
      */
     public synchronized AccountHistory accountHistory() {
-        if ( _accountHistory == null ) {
+        if (_accountHistory == null) {
             _accountHistory = new RPCAccountHistory(eosNodeURL, this);
         }
         return _accountHistory;
     }
 
+
+    // -------- Convienence Methods --------
+
+    public Transaction.Response pushTransaction(String account,
+                                                String name,
+                                                Map args,
+                                                List<String> scopes,
+                                                List<Transaction.Authorization> authorizations,
+                                                Date expirationDate,
+                                                String walletName) throws ChainException, WalletException {
+
+        Action action = new Action(account, name, authorizations, args) ;
+
+        return pushTransaction(action, expirationDate, walletName);
+    }
+
+    public Transaction.Response pushTransaction(Action action,
+                                                Date expirationDate,
+                                                String walletName) throws ChainException, WalletException {
+        List<Action> actions = new ArrayList<>();
+        actions.add(action);
+
+        List<String> walletNames = new ArrayList<>();
+        walletNames.add(walletName);
+
+        return pushTransaction(actions, expirationDate, walletNames);
+    }
+
+    public Transaction.Response pushTransaction(Action action,
+                                                Date expirationDate,
+                                                List<String> walletNames) throws ChainException, WalletException {
+        List<Action> actions = new ArrayList<>();
+        actions.add(action);
+
+        return pushTransaction(actions, expirationDate, walletNames);
+    }
+
+    public Transaction.Response pushTransaction(List<Action> actions,
+                                                Date expirationDate,
+                                                String walletName) throws ChainException, WalletException {
+        List<String> walletNames = new ArrayList<>();
+        walletNames.add(walletName);
+        return pushTransaction(actions, expirationDate, walletNames);
+    }
+
+    public Transaction.Response pushTransaction(List<Action> actions,
+                                                Date expirationDate,
+                                                List<String> walletNames) throws ChainException, WalletException {
+
+        // Create the unsigned transaction
+        Transaction registerTX = chain().createRawTransaction(
+                actions,
+                expirationDate);
+
+        // Get the available Keys from the specified wallets
+        List<String> availableKeys = new ArrayList<>();
+        for ( String walletName : walletNames ) {
+            availableKeys.addAll(wallet().getPublicKeys(walletName));
+        }
+
+        // Determine which keys this transaction requires
+        RequiredKeys requiredKeys = chain().getRequiredKeys(registerTX, availableKeys);
+
+        // Get the chain ID for this chain.
+        ChainInfo chainInfo = chain().getInfo();
+        String chainId = chainInfo.chain_id;
+
+        // Sign the transaction for the target chain
+        SignedTransaction signedTx = wallet().signTransaction(registerTX, requiredKeys.required_keys, chainId);
+
+        // Push the transaction to the chain
+        Transaction.Response response = chain().pushTransaction(signedTx);
+
+        return response;
+    }
+
     // -------- Package Scoped methods for raw communication with the RPC API --------
 
     // Send a Get Request to the Server and Return the response
-    EOSRPCResponse getRequest (URL url ) throws EOSException {
+    EOSRPCResponse getRequest(URL url) throws EOSException {
         try {
             HttpClient client = HttpClients.createDefault();
 
@@ -115,7 +202,7 @@ public class EOSRPCAdapter {
             HttpResponse response = client.execute(getRequest);
 
             return validateResponse(response);
-        } catch ( URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new EOSException("Communications Exception", e, null);
         } catch (ClientProtocolException e) {
             throw new EOSException("Communications Exception", e, null);
@@ -125,15 +212,15 @@ public class EOSRPCAdapter {
     }
 
     // Send a Post Request to the Server and Return the response
-    EOSRPCResponse postRequest (URL url, String rawData) throws EOSException {
+    EOSRPCResponse postRequest(URL url, String rawData) throws EOSException {
         return postRequest(url, rawData, false);
     }
 
     // Send a Post Request to the Server, quoting the rawData, and Return the response
-    EOSRPCResponse postRequest ( URL url, String rawData, boolean escapeQuotes) throws EOSException {
+    EOSRPCResponse postRequest(URL url, String rawData, boolean escapeQuotes) throws EOSException {
         try {
             String requestData = rawData;
-            if ( escapeQuotes ) {
+            if (escapeQuotes) {
                 requestData = StringEscapeUtils.escapeJavaScript(rawData);
             }
 
@@ -146,7 +233,7 @@ public class EOSRPCAdapter {
             HttpResponse response = client.execute(postRequest);
 
             return validateResponse(response);
-        } catch ( URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new EOSException("Communications Exception", e, null);
         } catch (ClientProtocolException e) {
             throw new EOSException("Communications Exception", e, null);
@@ -157,7 +244,7 @@ public class EOSRPCAdapter {
 
     EOSRPCResponse validateResponse(HttpResponse response) throws IOException, EOSException {
         EOSRPCResponse result;
-        if ( response.getStatusLine().getStatusCode() >= 200 && response.getStatusLine().getStatusCode() < 300) {
+        if (response.getStatusLine().getStatusCode() >= 200 && response.getStatusLine().getStatusCode() < 300) {
             result = new EOSRPCResponse(IOUtils.toString(response.getEntity().getContent(), "UTF-8"));
         } else {
             result = new EOSRPCResponse(response);

@@ -2,6 +2,7 @@ package io.topiacoin.eosrpcadapter;
 
 import io.topiacoin.eosrpcadapter.exceptions.ChainException;
 import io.topiacoin.eosrpcadapter.messages.AccountInfo;
+import io.topiacoin.eosrpcadapter.messages.Action;
 import io.topiacoin.eosrpcadapter.messages.BlockInfo;
 import io.topiacoin.eosrpcadapter.messages.ChainInfo;
 import io.topiacoin.eosrpcadapter.messages.Code;
@@ -52,7 +53,8 @@ public interface Chain {
     TableRows getTableRows(String contract,
                            String scope,
                            String table,
-                           String key,
+                           Integer indexPosition,
+                           String keyType,
                            String lowerBound,
                            String upperBound,
                            long limit,
@@ -79,6 +81,12 @@ public interface Chain {
                                      List<String> scopes,
                                      List<Transaction.Authorization> authorizations,
                                      Date expirationDate) throws ChainException;
+
+    Transaction createRawTransaction(Action action, Date expirationDate)
+            throws ChainException;
+
+    Transaction createRawTransaction(List<Action> actions, Date expirationDate)
+                    throws ChainException;
 
     Transaction createSetContractTransaction(String account, InputStream abi, InputStream wasm) throws ChainException;
 

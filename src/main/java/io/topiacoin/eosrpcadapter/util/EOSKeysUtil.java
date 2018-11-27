@@ -2,6 +2,7 @@ package io.topiacoin.eosrpcadapter.util;
 
 import io.topiacoin.eosrpcadapter.exceptions.KeyException;
 import io.topiacoin.eosrpcadapter.exceptions.SignatureException;
+import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.asn1.x9.X9IntegerConverter;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jce.ECNamedCurveTable;
@@ -692,10 +693,23 @@ public class EOSKeysUtil {
             byte[] rBytes = r.toByteArray();
             if (rBytes.length == 33 && rBytes[0] == 0x00) {
                 rBytes = Arrays.copyOfRange(rBytes, 1, 33);
+            } else if ( rBytes.length < 32 ) {
+                byte[] tmp = new byte[32] ;
+                System.arraycopy(rBytes, 0, tmp, (32 - rBytes.length), rBytes.length);
+                rBytes = tmp;
+            } else if ( rBytes.length > 32 ){
+                throw new RuntimeException ("OMG! The rBytes doesn't match our expectations!! - " + Hex.encodeHexString(rBytes)) ;
             }
             byte[] sBytes = s.toByteArray();
             if (sBytes.length == 33 && sBytes[0] == 0x00) {
                 sBytes = Arrays.copyOfRange(sBytes, 1, 33);
+            } else if ( sBytes.length < 32 ) {
+                // Deal with a short array
+                byte[] tmp = new byte[32] ;
+                System.arraycopy(sBytes, 0, tmp, (32 - sBytes.length), sBytes.length);
+                sBytes = tmp;
+            } else if ( rBytes.length > 32){
+                throw new RuntimeException ("OMG! The sBytes doesn't match our expectations!! - " + Hex.encodeHexString(rBytes)) ;
             }
 
             byte i2 = i ;

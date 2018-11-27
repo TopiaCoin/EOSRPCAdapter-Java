@@ -12,6 +12,7 @@ import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
+import org.bouncycastle.util.encoders.Hex;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -187,4 +188,15 @@ public class EOSKeysUtilTest {
         return signature;
     }
 
+    @Test
+    public void testStuff() throws Exception {
+        String key = "EOS55MHXAq4AJ6Gzm9fAxKbUQL9pcLHaZYc9toYdWhg9DPswizRSc" ;
+        String hexKey = "000218a936f03e2adc1603c84f063baf5591650aad6de8cf702b924474a91f843905";
+
+        byte[] keyBytes = EOSKeysUtil.checkAndDecodePublicKeyBytes(key) ;
+
+        String keyBytesHex = "00" + Hex.toHexString(keyBytes) ;
+
+        assertEquals ( hexKey, keyBytesHex) ;
+    }
 }

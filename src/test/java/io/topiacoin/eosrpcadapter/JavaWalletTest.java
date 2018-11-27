@@ -9,6 +9,7 @@ import org.apache.http.util.TextUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -58,11 +59,27 @@ public class JavaWalletTest extends AbstractWalletTests {
     }
 
     @Test
-    public void testSigningTransaction() throws Exception {
+    public void testStuff() throws Exception {
         Wallet wallet = getWallet();
-        URL nodeURL = new URL("http://localhost:8888/");
-        URL walletURL = new URL("http://localhost:8899/");
+
+        String walletName = "/Users/john/eosio-wallet/default";
+        String password = "PW5JJ4t4Bfg42YXUScNY6WVo7Gn8GAK6P7CJQfTPWNMqYiqRES9J1";
+
+        wallet.open(walletName) ;
+        wallet.unlock(walletName, password);
+
+        List<String> pubKeys = wallet.getPublicKeys(walletName);
+
+        System.out.println ( "PubKeys: " + pubKeys);
+    }
+
+    @Ignore
+    @Test
+    public void testSigningTransaction() throws Exception {
+        URL nodeURL = new URL("http://127.0.0.1:8888/");
+        URL walletURL = null;//new URL("http://127.0.0.1:8899/");
         EOSRPCAdapter eosrpcAdapter = new EOSRPCAdapter(nodeURL, walletURL);
+        Wallet wallet = eosrpcAdapter.wallet(); //getWallet();
 
         String chainID = "cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f";
 
@@ -80,15 +97,18 @@ public class JavaWalletTest extends AbstractWalletTests {
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
 
         Map<String, Object> args = new HashMap<String, Object>();
-        args.put("user", "inita");
-        args.put("guid", 81985529216486894L);
-        args.put("workspaceDescription", "A Different Description");
+        args.put("nodeid", 81985529216486894L);
+        args.put("url", "http://localhost:1234/");
+        args.put("chainCapacity", 5);
+        args.put("replicationCapacity", 10);
+        args.put("registeringAccount", "initb");
+        args.put("operatingAccount", "initb");
         List<String> scopes = new ArrayList<String>();
         scopes.add("active");
         List<Transaction.Authorization> authorizations = new ArrayList<Transaction.Authorization>();
-        authorizations.add(new Transaction.Authorization("inita", "active"));
+        authorizations.add(new Transaction.Authorization("initb", "active"));
         Date expirationDate = new Date(System.currentTimeMillis() + 60000) ;
-        Transaction transaction = eosrpcAdapter.chain().createRawTransaction("inita", "update",
+        Transaction transaction = eosrpcAdapter.chain().createRawTransaction("inita", "stakenode",
                 args, scopes, authorizations, expirationDate);
 
         String publicKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV";

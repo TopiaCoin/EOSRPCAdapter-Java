@@ -65,5 +65,12 @@ public class BlockInfo {
         public List<String> context_free_data;
         public String packed_trx;
         public Transaction transaction;
+
+        public TransactionInfo() {
+        }
+
+        public TransactionInfo(String id) {
+            this.id = id;
+        }
     }
 }
