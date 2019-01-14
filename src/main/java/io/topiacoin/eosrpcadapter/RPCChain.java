@@ -385,7 +385,7 @@ public class RPCChain implements Chain {
 
             EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
 
-            _log.info("ABI JSON to Bin Response: " + response);
+            _log.debug("ABI JSON to Bin Response: " + response);
 
             if (response.response != null) {
                 abiJsonToBinResponse = _objectMapper.readValue(response.response, TransactionBinArgs.class);
