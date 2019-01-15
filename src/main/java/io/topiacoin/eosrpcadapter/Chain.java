@@ -40,7 +40,7 @@ public interface Chain {
                            String scope,
                            String table,
                            long limit,
-                           boolean json) throws ChainException;
+                           boolean reverse) throws ChainException;
 
     TableRows getTableRows(String contract,
                            String scope,
@@ -48,7 +48,7 @@ public interface Chain {
                            String lowerBound,
                            String upperBound,
                            long limit,
-                           boolean json) throws ChainException;
+                           boolean reverse) throws ChainException;
 
     TableRows getTableRows(String contract,
                            String scope,
@@ -58,7 +58,7 @@ public interface Chain {
                            String lowerBound,
                            String upperBound,
                            long limit,
-                           boolean json) throws ChainException;
+                           boolean reverse) throws ChainException;
 
     TransactionBinArgs abiJsonToBin(String code,
                                     String action,

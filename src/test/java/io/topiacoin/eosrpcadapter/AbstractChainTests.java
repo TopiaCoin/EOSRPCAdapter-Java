@@ -72,7 +72,7 @@ public abstract class AbstractChainTests {
     public void testChainGetTableRows() throws Exception {
         Chain chain = getChain();
 
-        TableRows response = chain.getTableRows("inita", "inita", "containers", -1, true);
+        TableRows response = chain.getTableRows("inita", "inita", "containers", -1, false);
 
         assertNotNull(response);
     }

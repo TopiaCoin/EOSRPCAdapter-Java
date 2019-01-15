@@ -292,8 +292,8 @@ public class RPCChain implements Chain {
                                   String scope,
                                   String table,
                                   long limit,
-                                  boolean json) throws ChainException {
-        return getTableRows(contract, scope, table, 1, null, "0", "-1", limit, json);
+                                  boolean reverse) throws ChainException {
+        return getTableRows(contract, scope, table, 1, null, "0", "-1", limit, reverse);
     }
 
     @Override
@@ -303,8 +303,8 @@ public class RPCChain implements Chain {
                                   String lowerBound,
                                   String upperBound,
                                   long limit,
-                                  boolean json) throws ChainException {
-        return getTableRows(contract, scope, table, 1, null, lowerBound, upperBound, limit, json);
+                                  boolean reverse) throws ChainException {
+        return getTableRows(contract, scope, table, 1, null, lowerBound, upperBound, limit, reverse);
     }
 
     @Override
@@ -316,7 +316,7 @@ public class RPCChain implements Chain {
                                   String lowerBound,
                                   String upperBound,
                                   long limit,
-                                  boolean json) throws ChainException {
+                                  boolean reverse) throws ChainException {
         TableRows getTableRowsResponse = null;
 
         try {
@@ -338,7 +338,8 @@ public class RPCChain implements Chain {
             }
             requestMap.put("lower_bound", lowerBound);
             requestMap.put("upper_bound", upperBound);
-            requestMap.put("json", json);
+            requestMap.put("json", true);
+            requestMap.put("reverse", reverse);
 
             String requestString = _objectMapper.writeValueAsString(requestMap);
 
