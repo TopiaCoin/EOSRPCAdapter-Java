@@ -177,6 +177,7 @@ public class JavaWallet implements Wallet {
             TimerTask task = new WalletAutoLockTask(walletData) ;
             _lockTimer.schedule(task, walletData._lockTimeout);
         } catch (Exception e) {
+            e.printStackTrace();
             return false;
         }
 

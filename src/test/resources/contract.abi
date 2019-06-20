@@ -1,0 +1,1022 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Tue Nov 13 11:39:56 2018",
+    "version": "eosio::abi/1.0",
+    "structs": [
+        {
+            "name": "accept",
+            "base": "",
+            "fields": [
+                {
+                    "name": "invitee",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "acceptowner",
+            "base": "",
+            "fields": [
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "ackfile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "ackmessage",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "msgID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "addfile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "uploader",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "parentID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "ancestorVersionIDs",
+                    "type": "uint128[]"
+                },
+                {
+                    "name": "fileMetadata",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "addmessage",
+            "base": "",
+            "fields": [
+                {
+                    "name": "author",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "message",
+                    "type": "string"
+                },
+                {
+                    "name": "mimeType",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "addperm",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "target",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "permName",
+                    "type": "string"
+                },
+                {
+                    "name": "scope",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "addperms",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "target",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "permissions",
+                    "type": "userPermission[]"
+                }
+            ]
+        },
+        {
+            "name": "addtag",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "isPublic",
+                    "type": "boolean"
+                },
+                {
+                    "name": "value",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "create",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "workspaceName",
+                    "type": "string"
+                },
+                {
+                    "name": "workspaceDescription",
+                    "type": "string"
+                },
+                {
+                    "name": "key",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "decline",
+            "base": "",
+            "fields": [
+                {
+                    "name": "invitee",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "destroy",
+            "base": "",
+            "fields": [
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "file",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "parentID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "parentVersions",
+                    "type": "uint128[]"
+                },
+                {
+                    "name": "uploader",
+                    "type": "name"
+                },
+                {
+                    "name": "lockOwner",
+                    "type": "name"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                },
+                {
+                    "name": "status",
+                    "type": "uint8"
+                },
+                {
+                    "name": "metadata",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "fileReceipt",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "fileTag",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "scope",
+                    "type": "uint64"
+                },
+                {
+                    "name": "value",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "invite",
+            "base": "",
+            "fields": [
+                {
+                    "name": "inviter",
+                    "type": "name"
+                },
+                {
+                    "name": "invitee",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "key",
+                    "type": "string"
+                },
+                {
+                    "name": "permissions",
+                    "type": "userPermission[]"
+                }
+            ]
+        },
+        {
+            "name": "lock",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint128"
+                },
+                {
+                    "name": "lockOwner",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "lockfile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "lockmember",
+            "base": "",
+            "fields": [
+                {
+                    "name": "locker",
+                    "type": "name"
+                },
+                {
+                    "name": "lockee",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "lockver",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "membership",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "inviter",
+                    "type": "name"
+                },
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "status",
+                    "type": "uint8"
+                },
+                {
+                    "name": "key",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "message",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "msgID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "author",
+                    "type": "name"
+                },
+                {
+                    "name": "text",
+                    "type": "string"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                },
+                {
+                    "name": "mimeType",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "messageReceipt",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "msgID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "timestamp",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "offerowner",
+            "base": "",
+            "fields": [
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "newowner",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "permission",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "permissionType",
+                    "type": "name"
+                },
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "scope",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "remove",
+            "base": "",
+            "fields": [
+                {
+                    "name": "remover",
+                    "type": "name"
+                },
+                {
+                    "name": "member",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "removefile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "remover",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "removeperm",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "target",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "permName",
+                    "type": "string"
+                },
+                {
+                    "name": "scope",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "removeperms",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "target",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "permissions",
+                    "type": "userPermission[]"
+                }
+            ]
+        },
+        {
+            "name": "removetag",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "isPublic",
+                    "type": "boolean"
+                },
+                {
+                    "name": "value",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "rescindowner",
+            "base": "",
+            "fields": [
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "unlockfile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "unlockmember",
+            "base": "",
+            "fields": [
+                {
+                    "name": "locker",
+                    "type": "name"
+                },
+                {
+                    "name": "lockee",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "unlockver",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "fileID",
+                    "type": "uint128"
+                },
+                {
+                    "name": "versionID",
+                    "type": "uint128"
+                }
+            ]
+        },
+        {
+            "name": "update",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "guid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "workspaceDescription",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "userPermission",
+            "base": "",
+            "fields": [
+                {
+                    "name": "permName",
+                    "type": "string"
+                },
+                {
+                    "name": "scope",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "workspace",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "name",
+                    "type": "string"
+                },
+                {
+                    "name": "description",
+                    "type": "string"
+                },
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "newowner",
+                    "type": "name"
+                }
+            ]
+        }
+    ],
+    "types": [
+        {
+            "new_type_name": "boolean",
+            "type": "uint8"
+        }
+    ],
+    "actions": [
+        {
+            "name": "accept",
+            "type": "accept",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "acceptowner",
+            "type": "acceptowner",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "ackfile",
+            "type": "ackfile",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "ackmessage",
+            "type": "ackmessage",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addfile",
+            "type": "addfile",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addmessage",
+            "type": "addmessage",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addperm",
+            "type": "addperm",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addperms",
+            "type": "addperms",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addtag",
+            "type": "addtag",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "create",
+            "type": "create",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "decline",
+            "type": "decline",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "destroy",
+            "type": "destroy",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "invite",
+            "type": "invite",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "lockfile",
+            "type": "lockfile",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "lockmember",
+            "type": "lockmember",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "lockver",
+            "type": "lockver",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "offerowner",
+            "type": "offerowner",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "remove",
+            "type": "remove",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removefile",
+            "type": "removefile",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removeperm",
+            "type": "removeperm",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removeperms",
+            "type": "removeperms",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removetag",
+            "type": "removetag",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "rescindowner",
+            "type": "rescindowner",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unlockfile",
+            "type": "unlockfile",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unlockmember",
+            "type": "unlockmember",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unlockver",
+            "type": "unlockver",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "update",
+            "type": "update",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "filereceipts",
+            "type": "fileReceipt",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "files",
+            "type": "file",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "filetags",
+            "type": "fileTag",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "locks",
+            "type": "lock",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "membership",
+            "type": "membership",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "messages",
+            "type": "message",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "msgreceipts",
+            "type": "messageReceipt",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "permissions",
+            "type": "permission",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "workspace",
+            "type": "workspace",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "abi_extensions": []
+}

@@ -44,7 +44,7 @@ public abstract class AbstractChainTests {
     public void testChainGetBlock() throws Exception {
         Chain chain = getChain();
 
-        BlockInfo response = chain.getBlock("154594");
+        BlockInfo response = chain.getBlock("1");
 
         assertNotNull(response);
     }
