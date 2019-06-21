@@ -257,16 +257,17 @@ public class RPCChain implements Chain {
         Code getCodeResponse = null;
 
         try {
-            URL getBlockURL = new URL(chainURL, "/v1/chain/get_code");
+            URL getCodeURL = new URL(chainURL, "/v1/chain/get_code");
 
             Map<String, String> requestMap = new HashMap<String, String>();
             requestMap.put("account_name", accountName);
+            requestMap.put("code_as_wasm", "true");
 
             String requestString = _objectMapper.writeValueAsString(requestMap);
 
             _log.debug("Get Code Request: " + requestString);
 
-            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getBlockURL, requestString);
+            EOSRPCAdapter.EOSRPCResponse response = rpcAdapter.postRequest(getCodeURL, requestString);
 
             _log.debug("Get Code Response: " + response);
 
