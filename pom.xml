@@ -88,4 +88,9 @@
       <url>http://nexus.topiatechnology.com/content/repositories/snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
+
+  <scm>
+      <connection>scm:git:git@github.com:TopiaCoin/EOSRPCAdapter-Java.git</connection>
+  </scm>
+
 </project>
